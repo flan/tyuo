@@ -32,7 +32,7 @@ fn main() {
     let engine = engine::prepare(
         std::path::Path::new(matches.value_of("memory-dir").unwrap()),
         std::path::Path::new(matches.value_of("banned-tokens-list").unwrap()),
-    );
+    ).unwrap();
     
     info!("Preparing service...");
     //let service = service::prepare(engine);
@@ -40,5 +40,7 @@ fn main() {
     info!("Running service...");
     //service.serve_forever();
     
-    engine.shutdown();
+    error!("{}", engine.get_context("whee").unwrap().test());
+    
+    //engine.shutdown();
 }
