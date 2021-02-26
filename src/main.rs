@@ -1,8 +1,7 @@
 #[macro_use]
 extern crate log;
 
-mod logic;
-mod model;
+mod engine;
 mod service;
 
 fn main() {
@@ -14,8 +13,8 @@ fn main() {
         .version("0.0.1")
         .author("Neil Tallim <flan@uguu.ca>")
         .about("Markov-chain-based chatter action")
-        .arg(clap::Arg::new("db-dir")
-            .long("db-dir")
+        .arg(clap::Arg::new("memory-dir")
+            .long("memory-dir")
             .about("the path in which tyuo's memories are stored")
             .default_value(dirs::home_dir().unwrap().join(".tyuo/memories").to_str().unwrap())
             .takes_value(true))
@@ -27,10 +26,19 @@ fn main() {
         .get_matches();
         
     service::hello();
-    logic::goodbye();
+    engine::goodbye();
     
-    warn!("{}", matches.value_of("db-dir").unwrap());
-    warn!("{}", matches.value_of("banned-tokens-list").unwrap());
+    info!("Preparing engine...");
+    let engine = engine::prepare(
+        std::path::Path::new(matches.value_of("memory-dir").unwrap()),
+        std::path::Path::new(matches.value_of("banned-tokens-list").unwrap()),
+    );
     
-    info!("starting up");
+    info!("Preparing service...");
+    //let service = service::prepare(engine);
+    
+    info!("Running service...");
+    //service.serve_forever();
+    
+    engine.shutdown();
 }
