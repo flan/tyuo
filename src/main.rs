@@ -10,10 +10,27 @@ fn main() {
         .filter(None, log::LevelFilter::Info)
         .init();
         
+    let matches = clap::App::new("tyuo")
+        .version("0.0.1")
+        .author("Neil Tallim <flan@uguu.ca>")
+        .about("Markov-chain-based chatter action")
+        .arg(clap::Arg::new("db-dir")
+            .long("db-dir")
+            .about("the path in which tyuo's memories are stored")
+            .default_value(dirs::home_dir().unwrap().join(".tyuo/memories").to_str().unwrap())
+            .takes_value(true))
+        .arg(clap::Arg::new("banned-tokens-list")
+            .long("banned-tokens-list")
+            .about("the path to a file containing banned tokens")
+            .default_value(dirs::home_dir().unwrap().join(".tyuo/banned-tokens").to_str().unwrap())
+            .takes_value(true))
+        .get_matches();
+        
     service::hello();
     logic::goodbye();
     
-    
+    warn!("{}", matches.value_of("db-dir").unwrap());
+    warn!("{}", matches.value_of("banned-tokens-list").unwrap());
     
     info!("starting up");
 }
