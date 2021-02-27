@@ -9,7 +9,7 @@ pub struct Model {
     database_manager: Box<database::DatabaseManager>,
     //dictionary_banned
     
-    //contexts {model(database), dictionary(database), dictionary_banned(ref)}
+    //contexts {id: {model(database), dictionary(database), dictionary_banned(ref)}}
 }
 impl Model {
     pub fn prepare(db_dir:&std::path::Path, banned_tokens_list:&std::path::Path) -> Model {
