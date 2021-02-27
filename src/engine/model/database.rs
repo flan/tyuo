@@ -2,11 +2,13 @@ pub fn oh_no() {
     info!("oh no");
 }
 
+use rusqlite::{Connection, Error, params};
+
 pub struct Database {
-    connection: rusqlite::Connection,
+    connection: Connection,
 }
 impl Database {
-    pub fn prepare(connection:rusqlite::Connection) -> Database {
+    pub fn prepare(connection:Connection) -> Database {
         return Database{
             connection: connection,
         };
@@ -40,10 +42,10 @@ impl DatabaseManager {
     pub fn exists(&self, id:&str) -> bool {
         return self.resolve_path(id).is_file();
     }
-    pub fn load(&self, id:&str) -> Result<Database, rusqlite::Error> {
+    pub fn load(&self, id:&str) -> Result<Database, Error> {
         let path = self.resolve_path(id);
         info!("loading database {}...", id);
-        let connection = rusqlite::Connection::open(path)?;
+        let connection = Connection::open(path)?;
         debug!("preparing database structures...");
         
         connection.execute("CREATE TABLE IF NOT EXISTS dictionary (
@@ -51,23 +53,23 @@ impl DatabaseManager {
             id INTEGER NOT NULL PRIMARY KEY,
             caseInsensitiveOccurrences INTEGER NOT NULL,
             capitalisedFormsJSONZLIB BLOB
-        )")?;
+        )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_forward (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
             childrenJSONZLIB BLOB,
             
             FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE,
-        )")?;
+        )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_reverse (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
             childrenJSONZLIB BLOB,
             
             FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE,
-        )")?;
+        )", params![])?;
         
         debug!("preparing database pragma...");
         //ensure foreign keys are checked
-        connection.execute("PRAGMA foreign_keys=on")?;
+        connection.execute("PRAGMA foreign_keys=on", params![])?;
         
         return Ok(Database::prepare(connection));
         /*
