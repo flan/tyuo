@@ -82,7 +82,10 @@ impl DatabaseManager {
         return Err("unable to open database");
         *///TODO: reuse this error-presentation logic higher up
     }
-    pub fn drop(&self, id:&str) { //TODO: may fail
-        
+    pub fn drop(&self, id:&str) -> Result<(), String> {
+        if std::fs::remove_file(self.resolve_path(id)).is_ok() {
+            return Ok(());
+        }
+        return Err(format!("unable to remove {}", id));
     }
 }
