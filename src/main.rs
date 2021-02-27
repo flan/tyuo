@@ -13,10 +13,10 @@ fn main() {
         .version("0.0.1")
         .author("Neil Tallim <flan@uguu.ca>")
         .about("Markov-chain-based chatter action")
-        .arg(clap::Arg::new("memory-dir")
-            .long("memory-dir")
-            .about("the path in which tyuo's memories are stored")
-            .default_value(dirs::home_dir().unwrap().join(".tyuo/memories").to_str().unwrap())
+        .arg(clap::Arg::new("db-dir")
+            .long("db-dir")
+            .about("the path in which tyuo's databases are stored")
+            .default_value(dirs::home_dir().unwrap().join(".tyuo/databases").to_str().unwrap())
             .takes_value(true))
         .arg(clap::Arg::new("banned-tokens-list")
             .long("banned-tokens-list")
@@ -30,7 +30,7 @@ fn main() {
     
     info!("Preparing engine...");
     let engine = engine::prepare(
-        std::path::Path::new(matches.value_of("memory-dir").unwrap()),
+        std::path::Path::new(matches.value_of("db-dir").unwrap()),
         std::path::Path::new(matches.value_of("banned-tokens-list").unwrap()),
     ).unwrap();
     
