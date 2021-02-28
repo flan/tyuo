@@ -37,11 +37,19 @@ impl Database {
     
     
     pub fn banned_load_banned_tokens(&self) -> Result<Vec<banned_dictionary::BannedWord>, Error> {
-        let mut stmt = self.connection.prepare("SELECT caseInsensitiveRepresentation FROM dictionary_banned")?;
+        let mut stmt = self.connection.prepare("SELECT
+            banned.caseInsensitiveRepresentation,
+            dict.id
+        FROM
+            dictionary_banned AS banned
+        LEFT JOIN dictionary AS dict ON
+            banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
+        ")?;
         let iter = stmt.query_map(params![], |row| {
             let case_insensitive_representation:String = row.get(0)?;
             return Ok(banned_dictionary::BannedWord {
                 case_insensitive_representation: case_insensitive_representation.to_lowercase(),
+                dictionary_id: row.get(1)?,
             });
         })?;
         
