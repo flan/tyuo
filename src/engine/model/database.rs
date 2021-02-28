@@ -2,7 +2,30 @@ pub fn oh_no() {
     info!("oh no");
 }
 
+use std::io::{Read, Write};
+
 use rusqlite::{Connection, Error, params};
+use serde_json::json;
+
+fn to_json_zlib(serialisable_data:serde_json::Value) -> Vec<u8> {
+    let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(&serde_json::to_vec(&serialisable_data).unwrap());
+    return encoder.finish().unwrap();
+}
+fn from_json_zlib(blob:Vec<u8>) -> Option<serde_json::Value> {
+    let mut decoder = flate2::read::ZlibDecoder::new(&blob[..]);
+    let mut decoded = String::new();
+    if decoder.read_to_string(&mut decoded).is_err() {
+        return None;
+    }
+    
+    let deserialised_json = serde_json::from_str(decoded.as_str());
+    if deserialised_json.is_ok() {
+        return Some(deserialised_json.unwrap());
+    }
+    return None;
+}
+
 
 pub struct Database {
     connection: Connection,
