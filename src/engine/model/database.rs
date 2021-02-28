@@ -46,11 +46,10 @@ impl Database {
             banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
         ")?;
         let iter = stmt.query_map(params![], |row| {
-            let case_insensitive_representation:String = row.get(0)?;
-            return Ok(banned_dictionary::BannedWord {
-                case_insensitive_representation: case_insensitive_representation.to_lowercase(),
-                dictionary_id: row.get(1)?,
-            });
+            return Ok(banned_dictionary::BannedWord::prepare(
+                row.get(0)?,
+                row.get(1)?,
+            ));
         })?;
         
         let mut output = Vec::new();
