@@ -37,7 +37,7 @@ impl Database {
     
     
     pub fn banned_load_banned_tokens(&self) -> Result<Vec<banned_dictionary::BannedWord>, Error> {
-        let mut stmt = self.connection.prepare("SELECT caseInsensitiveRepresentation FROM dictionary_banned")?;
+        let mut stmt = self.connection.prepare("SELECT LOWER(caseInsensitiveRepresentation) FROM dictionary_banned")?;
         let iter = stmt.query_map(params![], |row| {
             return Ok(banned_dictionary::BannedWord {
                 case_insensitive_representation: row.get(0)?,
