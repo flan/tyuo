@@ -1,6 +1,4 @@
-pub fn oh_no() {
-    info!("oh no");
-}
+use crate::engine::model::banned_dictionary;
 
 use std::io::{Read, Write};
 
@@ -38,8 +36,19 @@ impl Database {
     }
     
     
-    pub fn banned_load_banned_tokens(&self) {
+    pub fn banned_load_banned_tokens(&self) -> Result<Vec<banned_dictionary::BannedWord>, Error> {
+        let mut stmt = self.connection.prepare("SELECT caseInsensitiveRepresentation FROM dictionary_banned")?;
+        let iter = stmt.query_map(params![], |row| {
+            return Ok(banned_dictionary::BannedWord {
+                case_insensitive_representation: row.get(0)?,
+            });
+        })?;
         
+        let mut output = Vec::new();
+        for banned_word in iter {
+            output.push(banned_word.unwrap());
+        }
+        return Ok(output);
     }
     pub fn banned_ban_tokens(&self) {
         
@@ -102,6 +111,9 @@ impl DatabaseManager {
             id INTEGER NOT NULL PRIMARY KEY,
             caseInsensitiveOccurrences INTEGER NOT NULL,
             capitalisedFormsJSONZLIB BLOB
+        )", params![])?;
+        connection.execute("CREATE TABLE IF NOT EXISTS dictionary_banned (
+            caseInsensitiveRepresentation TEXT NOT NULL PRIMARY KEY,
         )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_forward (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
