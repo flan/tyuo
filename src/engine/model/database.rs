@@ -37,13 +37,39 @@ impl Database {
         };
     }
     
-    //functions to read and write the dictionary
     
-    //functions to read and write statistics
+    pub fn banned_load_banned_tokens(&self) {
+        
+    }
+    pub fn banned_ban_tokens(&self) {
+        
+    }
+    pub fn banned_unban_tokens(&self) {
+        
+    }
     
     
-    pub fn test(&self) -> &str {
-        return "hello";
+    pub fn dictionary_enumerate_words_by_token(&self) {
+        //substring-match
+    }
+    pub fn dictionary_get_words_by_token(&self) {
+        //exact-match
+        //creates if not defined, including upsert
+    }
+    pub fn dictionary_get_words_by_id(&self) {
+        //if not defined, raise an error
+    }
+    pub fn dictionary_set_words(&self) {
+        //the level consuming this should delete case-sensitive variations of banned words
+        //to save a bit of space
+    }
+    
+    
+    pub fn model_get_transitions(&self, direction:&str) {
+        
+    }
+    pub fn model_set_transitions(&self, direction:&str) {
+        //if the node has no transitions, delete it; this efficiently reinforces the banned case
     }
 }
 
