@@ -1,6 +1,7 @@
 use crate::engine::model::banned_dictionary;
 
 use std::io::{Read, Write};
+//use itertools::Itertools;
 
 use rusqlite::{Connection, Error, params};
 use serde_json::json;
@@ -11,7 +12,7 @@ fn to_json_zlib(serialisable_data:serde_json::Value) -> Vec<u8> {
     return encoder.finish().unwrap();
 }
 fn from_json_zlib(blob:Vec<u8>) -> Option<serde_json::Value> {
-    let mut decoder = flate2::read::ZlibDecoder::new(&blob[..]);
+    let mut decoder = flate2::read::ZlibDecoder::new(blob.as_slice());
     let mut decoded = String::new();
     if decoder.read_to_string(&mut decoded).is_err() {
         return None;
@@ -36,16 +37,33 @@ impl Database {
     }
     
     
-    pub fn banned_load_banned_tokens(&self) -> Result<Vec<banned_dictionary::BannedWord>, Error> {
-        let mut stmt = self.connection.prepare("SELECT
+    pub fn banned_load_banned_tokens(&mut self, tokens:Option<Vec<&str>>) -> Result<Vec<banned_dictionary::BannedWord>, Error> {
+        let tkns:Vec<&str>;
+        let mut query_string:String = "SELECT
             banned.caseInsensitiveRepresentation,
             dict.id
         FROM
             dictionary_banned AS banned
         LEFT JOIN dictionary AS dict ON
             banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
-        ")?;
-        let iter = stmt.query_map(params![], |row| {
+        ".to_string();
+        if tokens.is_some() {
+            tkns = tokens.unwrap();
+            
+            let mut array_parms = Vec::new();
+            for idx in 0..tkns.len() {
+                array_parms.push(format!("?{}", idx + 1));
+            }
+            
+            query_string.push_str(format!("WHERE
+                banned.caseInsensitiveRepresentation IN ({})
+            ", array_parms.join(",")).as_str());
+        } else {
+            tkns = Vec::new();
+        }
+        
+        let mut stmt = self.connection.prepare(query_string.as_str())?;
+        let iter = stmt.query_map(tkns, |row| {
             return Ok(banned_dictionary::BannedWord::prepare(
                 row.get(0)?,
                 row.get(1)?,
@@ -58,11 +76,35 @@ impl Database {
         }
         return Ok(output);
     }
-    pub fn banned_ban_tokens(&self) {
+    pub fn banned_ban_tokens(&mut self, tokens:Vec<&str>) -> Result<Vec<banned_dictionary::BannedWord>, Error> {
+        let tx = self.connection.transaction()?;
+        {
+            let mut insert_stmt = tx.prepare("INSERT INTO
+                dictionary_banned(caseInsensitiveRepresentation)
+            VALUES (?1)
+            ON CONFLICT DO NOTHING
+            ")?;
+            for token in tokens.to_vec() { //copy it, since there's another use later
+                insert_stmt.execute(&[token]);
+            }
+        }
+        tx.commit()?;
         
+        return self.banned_load_banned_tokens(Some(tokens));
     }
-    pub fn banned_unban_tokens(&self) {
+    pub fn banned_unban_tokens(&self, tokens:Vec<&str>) -> Result<(), Error> {
+        let mut array_parms = Vec::new();
+        for idx in 0..tokens.len() {
+            array_parms.push(format!("?{}", idx + 1));
+        }
         
+        self.connection.execute(format!("DELETE
+        FROM
+            dictionary_banned
+        WHERE
+            caseInsensitiveRepresentation IN ({})
+        ", array_parms.join(",")).as_str(), tokens)?;
+        return Ok(());
     }
     
     
@@ -121,19 +163,19 @@ impl DatabaseManager {
             capitalisedFormsJSONZLIB BLOB
         )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS dictionary_banned (
-            caseInsensitiveRepresentation TEXT NOT NULL PRIMARY KEY,
+            caseInsensitiveRepresentation TEXT NOT NULL PRIMARY KEY
         )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_forward (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
             childrenJSONZLIB BLOB,
             
-            FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE,
+            FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
         )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_reverse (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
             childrenJSONZLIB BLOB,
             
-            FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE,
+            FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
         )", params![])?;
         
         debug!("preparing database pragma...");

@@ -12,3 +12,12 @@ impl BannedWord {
         };
     }
 }
+impl std::fmt::Debug for BannedWord {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(fmt, "BannedWord {{ repr: {:?}, id: {:?} }}",
+            self.case_insensitive_representation,
+            self.dictionary_id,
+        )?;
+        Ok(())
+    }
+}
