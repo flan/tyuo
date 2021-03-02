@@ -9,7 +9,7 @@ pub fn goodbye() {
 pub struct Model {
     database_manager: Box<database::DatabaseManager>,
     //dictionary_banned
-    
+
     //contexts {id: {model(database), dictionary(database), dictionary_banned(database, list)}}
 }
 impl Model {
@@ -21,24 +21,26 @@ impl Model {
             eprintln!("{:?}", dbr.err());
         } else {
             let mut db = dbr.unwrap();
+            /* //these use HashSets now
             println!("{:?}", db.banned_ban_tokens(vec!["hi", "bye", "test"]).unwrap());
             println!("{:?}", db.banned_load_banned_tokens(Some(vec!["hi", "bye", "test"])).unwrap());
             println!("{:?}", db.banned_unban_tokens(vec!["bye"]));
             println!("{:?}", db.banned_load_banned_tokens(None).unwrap());
+            */
         }
-        
+
         return Model{
             database_manager: database::DatabaseManager::prepare(db_dir),
         };
     }
-    
+
     pub fn get_context(&mut self, id:&str) {
-        
+
     }
     pub fn create_context(&self, id:&str) {
-        
+
     }
     pub fn drop_context(&mut self, id:&str) {
-        
+
     }
 }

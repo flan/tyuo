@@ -7,7 +7,7 @@ pub struct BannedWord {
 impl BannedWord {
     pub fn prepare(case_insensitive_representation:String, dictionary_id: Option<i32>) -> BannedWord {
         return BannedWord{
-            case_insensitive_representation: case_insensitive_representation.to_lowercase(),
+            case_insensitive_representation: case_insensitive_representation,
             dictionary_id: dictionary_id,
         };
     }

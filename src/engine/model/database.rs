@@ -21,7 +21,7 @@ fn from_json_zlib(blob:Vec<u8>) -> Option<serde_json::Value> {
     if decoder.read_to_string(&mut decoded).is_err() {
         return None;
     }
-    
+
     let deserialised_json = serde_json::from_str(decoded.as_str());
     if deserialised_json.is_ok() {
         return Some(deserialised_json.unwrap());
@@ -39,10 +39,10 @@ impl Database {
             connection: connection,
         };
     }
-    
-    
-    pub fn banned_load_banned_tokens(&mut self, tokens:Option<Vec<&str>>) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
-        let tkns:Vec<&str>;
+
+
+    pub fn banned_load_banned_tokens(&mut self, tokens:Option<HashSet<&str>>) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
+        let tkns:HashSet<&str>;
         let mut query_string:String = "SELECT
             banned.caseInsensitiveRepresentation,
             dict.id
@@ -53,32 +53,35 @@ impl Database {
         ".to_string();
         if tokens.is_some() {
             tkns = tokens.unwrap();
-            
+
             let mut array_parms = Vec::with_capacity(tkns.len());
             for idx in 0..tkns.len() {
                 array_parms.push(format!("?{}", idx + 1));
             }
-            
+
             query_string.push_str(format!("WHERE
                 banned.caseInsensitiveRepresentation IN ({})
             ", array_parms.join(",")).as_str());
         } else {
-            tkns = Vec::new();
+            tkns = HashSet::new();
         }
         let mut stmt = self.connection.prepare(query_string.as_str())?;
-        
+
         let mut results = Vec::new();
-        for _ in stmt.query_map(tkns, |row| {
-            results.push(banned_dictionary::BannedWord::prepare(
-                row.get(0)?,
-                row.get(1)?,
-            ));
-            return Ok(());
-        })?{};
-        
+        for result_row in stmt.query(tkns)? {
+            if result_row.is_ok() {
+                let row = result_row.unwrap();
+                results.push(banned_dictionary::BannedWord::prepare(
+                    row.get(0)?,
+                    row.get(1)?,
+                ));
+            } else {
+                return Err(result_row.unwrap_err());
+            }
+        }
         return Ok(results);
     }
-    pub fn banned_ban_tokens(&mut self, tokens:Vec<&str>) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
+    pub fn banned_ban_tokens(&mut self, tokens:HashSet<&str>) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
         let tx = self.connection.transaction()?;
         {
             let mut insert_stmt = tx.prepare("INSERT INTO
@@ -86,20 +89,20 @@ impl Database {
             VALUES (?1)
             ON CONFLICT DO NOTHING
             ")?;
-            for token in tokens.to_vec() { //copy it, since there's another use later
+            for token in &tokens {
                 insert_stmt.execute(&[token])?;
             }
         }
         tx.commit()?;
-        
+
         return self.banned_load_banned_tokens(Some(tokens));
     }
-    pub fn banned_unban_tokens(&self, tokens:Vec<&str>) -> Result<(), Box<Error>> {
+    pub fn banned_unban_tokens(&self, tokens:HashSet<&str>) -> Result<(), Box<Error>> {
         let mut array_parms = Vec::with_capacity(tokens.len());
         for idx in 0..tokens.len() {
             array_parms.push(format!("?{}", idx + 1));
         }
-        
+
         self.connection.execute(format!("DELETE
         FROM
             dictionary_banned
@@ -108,10 +111,9 @@ impl Database {
         ", array_parms.join(",")).as_str(), tokens)?;
         return Ok(());
     }
-    
-    
-    pub fn dictionary_enumerate_words_by_substring(&self, substrings:Vec<&str>) -> Result<HashMap<String, i32>, Box<Error>> {
-        
+
+
+    pub fn dictionary_enumerate_words_by_substring(&self, substrings:HashSet<&str>) -> Result<HashMap<String, i32>, Box<Error>> {
         let mut stmt = self.connection.prepare("SELECT
             caseInsensitiveRepresentation,
             id
@@ -120,28 +122,64 @@ impl Database {
         WHERE
             caseInsensitiveRepresentation LIKE ?1
         ")?;
-        
+
         let mut results = HashMap::new();
         for substring in substrings {
-            for _ in stmt.query_map(&[format!("%{}%", substring)], |row| {
-                results.insert(row.get(0)?, row.get(1)?);
-                return Ok(());
-            })?{};
+            for result_row in stmt.query(&[format!("%{}%", substring)])? {
+                if result_row.is_ok() {
+                    let row = result_row.unwrap();
+                    results.insert(row.get(0)?, row.get(1)?);
+                } else {
+                    return Err(result_row.unwrap_err());
+                }
+            }
         }
-        
         return Ok(results);
     }
-    pub fn dictionary_get_words_by_token(&self) {
-        //exact-match
-        //creates if not defined, including upsert
+    pub fn dictionary_get_words_by_token(&self, tokens:HashSet<&str>) -> Result<Vec<DictionaryWord>, Box<Error>> {
+        let mut array_parms = Vec::with_capacity(tokens.len());
+        for idx in 0..tokens.len() {
+            array_parms.push(format!("?{}", idx + 1));
+        }
+
+        let mut stmt = self.connection.prepare(format!("SELECT
+            caseInsensitiveRepresentation,
+            id,
+            caseInsensitiveOccurrences,
+            capitalisedFormsJSON
+        FROM
+            dictionary
+        WHERE
+            caseInsensitiveRepresentation IN ({})
+        ", array_parms.join(",")).as_str())?;
+
+        let mut results = Vec::with_capacity(tokens.len());
+        for result_row in stmt.query(tokens)? {
+            if result_row.is_ok() {
+                let row = result_row.unwrap();
+
+                let raw_json:Vec<u8> = row.get(3)?;
+                let raw_json_str = std::str::from_utf8(&raw_json)?;
+                let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
+
+                results.push(dictionary::DictionaryWord::prepare(
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(0)?,
+                    deserialised_json,
+                ));
+            } else {
+                return Err(result_row.unwrap_err());
+            }
+        }
+        return Ok(results);
     }
     pub fn dictionary_get_words_by_id(&self, ids:HashSet<i32>) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
         let mut array_parms = Vec::with_capacity(ids.len());
-        let ids_len = ids.len();
-        for idx in 0..ids_len {
+        for idx in 0..ids.len() {
             array_parms.push(format!("?{}", idx + 1));
         }
-        
+
         let mut stmt = self.connection.prepare(format!("SELECT
             caseInsensitiveRepresentation,
             id,
@@ -152,41 +190,43 @@ impl Database {
         WHERE
             id IN ({})
         ", array_parms.join(",")).as_str())?;
-        
-        let mut results = Vec::with_capacity(ids_len);
-        for _ in stmt.query_map(ids, |row| {
-            let raw_json:Vec<u8> = row.get(3)?;
-            let raw_json_str = std::str::from_utf8(&raw_json)?;
-            let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
-            
-            results.push(dictionary::DictionaryWord::prepare(
-                row.get(1)?,
-                row.get(2)?,
-                row.get(0)?,
-                deserialised_json,
-            ));
-            return Ok(());
-        })?{};
-        
-        if results.len() != ids_len {
-            return Err(string_error::into_err(format!(
-                "{} requested IDs were not found",
-                ids_len - results.len(),
-            )));
+
+        let mut results = Vec::with_capacity(ids.len());
+        for result_row in stmt.query(ids)? {
+            if result_row.is_ok() {
+                let row = result_row.unwrap();
+
+                let raw_json:Vec<u8> = row.get(3)?;
+                let raw_json_str = std::str::from_utf8(&raw_json)?;
+                let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
+
+                results.push(dictionary::DictionaryWord::prepare(
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(0)?,
+                    deserialised_json,
+                ));
+            } else {
+                return Err(result_row.unwrap_err());
+            }
         }
-        
         return Ok(results);
     }
     pub fn dictionary_set_words(&self) {
         //the level consuming this should delete case-sensitive variations of banned words
-        //to save a bit of space
+        //to save a bit of space... but that's like 30 bytes per word, so a couple of kilobytes in
+        //total, at most; just don't bother
     }
-    pub fn dictionary_get_latest_identifier(&self) -> Result<i32, Box<Error>>{
-        return Ok(0);
+    pub fn dictionary_get_next_identifier(&self) -> Result<i32, Box<Error>>{
+        let mut next_identifier:i32 = -2147483648; //lowest allowable identifier
+        self.connection.query_row("SELECT MAX(id) FROM dictionary", params![], |row| {
+            next_identifier = row.get(0)?;
+        })?;
+        return Ok(next_identifier);
     }
-    
+
     pub fn model_get_transitions(&self, direction:&str) {
-        
+
     }
     pub fn model_set_transitions(&self, direction:&str) {
         //if the node has no transitions, delete it; this efficiently reinforces the banned case
@@ -202,7 +242,7 @@ impl DatabaseManager {
             db_dir: db_dir.to_owned(),
         });
     }
-    
+
     fn resolve_path(&self, id:&str) -> std::path::PathBuf {
         let mut db_path = self.db_dir.join(id);
         db_path.set_extension("sqlite3");
@@ -216,7 +256,7 @@ impl DatabaseManager {
         info!("loading database {}...", id);
         let connection = Connection::open(path)?;
         debug!("preparing database structures...");
-        
+
         connection.execute("CREATE TABLE IF NOT EXISTS dictionary (
             caseInsensitiveRepresentation TEXT NOT NULL UNIQUE,
             id INTEGER NOT NULL PRIMARY KEY,
@@ -229,22 +269,22 @@ impl DatabaseManager {
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_forward (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
             childrenJSONZLIB BLOB,
-            
+
             FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
         )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_reverse (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
             childrenJSONZLIB BLOB,
-            
+
             FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
         )", params![])?;
-        
+
         debug!("preparing database pragma...");
         //ensure foreign keys are checked
         connection.execute("PRAGMA foreign_keys=on", params![])?;
         //since only lower-case matches occur, let comparisons be optimal
         connection.execute("PRAGMA case_sensitive_like=true", params![])?;
-        
+
         return Ok(Database::prepare(connection));
         /*
         let e = connection.err();

@@ -18,7 +18,7 @@ impl DictionaryWord {
         return DictionaryWord{
             id: id,
             case_insensitive_occurrences: case_insensitive_occurrences,
-            case_insensitive_representation: case_insensitive_representation.to_lowercase(),
+            case_insensitive_representation: case_insensitive_representation,
             capitalised_forms: capitalised_forms,
         };
     }
