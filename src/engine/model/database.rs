@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 use std::io::{Read, Write};
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, named_params, params};
 use serde_json::json;
 
 fn to_json_zlib(serialisable_data:serde_json::Value) -> Vec<u8> {
@@ -41,7 +41,9 @@ impl Database {
     }
 
 
-    pub fn banned_load_banned_tokens(&mut self, tokens:Option<HashSet<&str>>) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
+    pub fn banned_load_banned_tokens(&mut self,
+        tokens:Option<HashSet<&str>>,
+    ) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
         let tkns:HashSet<&str>;
         let mut query_string:String = "SELECT
             banned.caseInsensitiveRepresentation,
@@ -77,7 +79,9 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn banned_ban_tokens(&mut self, tokens:HashSet<&str>) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
+    pub fn banned_ban_tokens(&mut self,
+        tokens:HashSet<&str>,
+    ) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
         let tx = self.connection.transaction()?;
         {
             let mut insert_stmt = tx.prepare("INSERT INTO
@@ -93,7 +97,9 @@ impl Database {
 
         return self.banned_load_banned_tokens(Some(tokens));
     }
-    pub fn banned_unban_tokens(&self, tokens:HashSet<&str>) -> Result<(), Box<Error>> {
+    pub fn banned_unban_tokens(&self,
+        tokens:HashSet<&str>,
+    ) -> Result<(), Box<Error>> {
         let mut array_parms = Vec::with_capacity(tokens.len());
         for idx in 0..tokens.len() {
             array_parms.push(format!("?{}", idx + 1));
@@ -109,7 +115,9 @@ impl Database {
     }
 
 
-    pub fn dictionary_enumerate_words_by_substring(&self, substrings:HashSet<&str>) -> Result<HashMap<String, i32>, Box<Error>> {
+    pub fn dictionary_enumerate_words_by_substring(&self,
+        substrings:HashSet<&str>,
+    ) -> Result<HashMap<String, i32>, Box<Error>> {
         let mut stmt = self.connection.prepare("SELECT
             caseInsensitiveRepresentation,
             id
@@ -128,7 +136,9 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_get_words_by_token(&self, tokens:HashSet<&str>) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
+    pub fn dictionary_get_words_by_token(&self,
+        tokens:HashSet<&str>,
+    ) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
         let mut array_parms = Vec::with_capacity(tokens.len());
         for idx in 0..tokens.len() {
             array_parms.push(format!("?{}", idx + 1));
@@ -161,7 +171,9 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_get_words_by_id(&self, ids:HashSet<i32>) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
+    pub fn dictionary_get_words_by_id(&self,
+        ids:HashSet<i32>,
+    ) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
         let mut array_parms = Vec::with_capacity(ids.len());
         for idx in 0..ids.len() {
             array_parms.push(format!("?{}", idx + 1));
@@ -194,10 +206,51 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_set_words(&self) {
-        //the level consuming this should delete case-sensitive variations of banned words
-        //to save a bit of space... but that's like 30 bytes per word, so a couple of kilobytes in
-        //total, at most; just don't bother
+    pub fn dictionary_get_random_words(&self,
+        count:u8,
+    ) -> Result<Vec<(String, i32)>, Box<Error>> {
+        let mut stmt = self.connection.prepare(format!("SELECT
+            caseInsensitiveRepresentation,
+            id
+        FROM
+            dictionary
+        ORDER BY RANDOM()
+        LIMIT {}
+        ", count).as_str())?;
+
+        let mut results = Vec::with_capacity(count.into());
+        let mut rows = stmt.query(params![])?;
+        while let Some(row) = rows.next()? {
+            results.push((row.get(0)?, row.get(1)?));
+        }
+        return Ok(results);
+    }
+    pub fn dictionary_set_words(&mut self,
+        words:HashSet<dictionary::DictionaryWord>,
+    ) -> Result<(), Box<Error>> {
+        let tx = self.connection.transaction()?;
+        {
+            let mut stmt = tx.prepare("INSERT INTO dictionary(
+                caseInsensitiveRepresentation,
+                id,
+                caseInsensitiveOccurrences,
+                capitalisedFormsJSON
+            ) VALUES (:cir, :id, :cio, :cfj)
+            ON CONFLICT(id) DO UPDATE SET
+                caseSensitiveOccurrences = :cio,
+                capitalisedFormsJSON = :cfj
+            ")?;
+            for word in words {
+                stmt.execute_named(named_params!{
+                    ":cir": word.get_case_insensitive_representation(),
+                    ":id": word.get_id(),
+                    ":cio": word.get_case_insensitive_occurrences(),
+                    ":cfj": serde_json::to_vec(&word.get_capitalised_forms())?,
+                })?;
+            }
+        }
+        tx.commit()?;
+        return Ok(());
     }
     pub fn dictionary_get_next_identifier(&self) -> Result<i32, Box<Error>>{
         let mut next_identifier:i32 = -2147483648; //lowest allowable identifier
@@ -207,6 +260,7 @@ impl Database {
         })?;
         return Ok(next_identifier);
     }
+
 
     pub fn model_get_transitions(&self, direction:&str) {
 

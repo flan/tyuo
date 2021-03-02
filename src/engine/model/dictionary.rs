@@ -22,6 +22,19 @@ impl DictionaryWord {
             capitalised_forms: capitalised_forms,
         };
     }
+    
+    pub fn get_id(&self) -> i32 {
+        return self.id.clone();
+    }
+    pub fn get_case_insensitive_occurrences(&self) -> i32 {
+        return self.case_insensitive_occurrences.clone();
+    }
+    pub fn get_case_insensitive_representation(&self) -> String {
+        return self.case_insensitive_representation.clone();
+    }
+    pub fn get_capitalised_forms(&self) -> HashMap<String, i32> {
+        return self.capitalised_forms.clone();
+    }
 }
 impl std::fmt::Debug for DictionaryWord {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -35,13 +48,30 @@ impl std::fmt::Debug for DictionaryWord {
     }
 }
 
+pub struct DictionarySlice {
+    //DictionaryWords keyed by ID and representation
+}
+impl DictionarySlice {
+    
+}
+
 pub struct Dictionary {
     //database reference
     //latest ID
+    //a list of all words that are never keyword candidates
 }
 impl Dictionary {
     //function to get a collection of words as a DictionarySlice, holding them
     //in memory, keyed by ID and case-insensitive repr
     //this is used to efficiently perform updates while learning and format output
     //two forms to get this, actually: one by IDs and one by tokens
+    
+    //function to derive a HashSet of IDs from a given input string
+    //if too few words qualify, a random sample of keyword candidates
+    //is added in a loop, until the threshold is satisfied.
+    //there should probably be a priority ordering of primary candidates (from input)
+    //and then secondaries chosen at random
+    
+    //function to learn from a given input-string, updating the dictionary and
+    //returning the identifiers of all tokens received, in sequential order
 }

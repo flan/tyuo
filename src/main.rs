@@ -18,6 +18,11 @@ fn main() {
             .about("the path in which tyuo's databases are stored")
             .default_value(dirs::home_dir().unwrap().join(".tyuo/databases").to_str().unwrap())
             .takes_value(true))
+        .arg(clap::Arg::new("non-keyword-tokens-list")
+            .long("non-keyword-tokens-list")
+            .about("the path to a file containing tokens that are unsuitable for use as keywords")
+            .default_value(dirs::home_dir().unwrap().join(".tyuo/non-keyword-tokens").to_str().unwrap())
+            .takes_value(true))
         .arg(clap::Arg::new("banned-tokens-list")
             .long("banned-tokens-list")
             .about("the path to a file containing banned tokens")
@@ -31,6 +36,7 @@ fn main() {
     info!("Preparing engine...");
     let engine = engine::prepare(
         std::path::Path::new(matches.value_of("db-dir").unwrap()),
+        std::path::Path::new(matches.value_of("non-keyword-tokens-list").unwrap()),
         std::path::Path::new(matches.value_of("banned-tokens-list").unwrap()),
     ).unwrap();
     

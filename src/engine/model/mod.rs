@@ -8,12 +8,17 @@ pub fn goodbye() {
 
 pub struct Model {
     database_manager: Box<database::DatabaseManager>,
-    //dictionary_banned
-
-    //contexts {id: {model(database), dictionary(database), dictionary_banned(database, list)}}
+    //banned list (origin)
+    //non-keyword list (origin)
+    
+    //contexts {id: {model(database), dictionary(database, non-keyword-tokens list), dictionary_banned(database, banned list)}}
 }
 impl Model {
-    pub fn prepare(db_dir:&std::path::Path, banned_tokens_list:&std::path::Path) -> Model {
+    pub fn prepare(
+        db_dir:&std::path::Path,
+        non_keyword_tokens:&std::path::Path,
+        banned_tokens_list:&std::path::Path,
+    ) -> Model {
         //TODO: dev test
         let dbm = database::DatabaseManager::prepare(db_dir);
         let dbr = dbm.load("hi");

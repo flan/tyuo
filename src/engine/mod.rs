@@ -29,8 +29,16 @@ impl Engine {
     }
 }
 
-pub fn prepare(db_dir:&std::path::Path, banned_tokens_list:&std::path::Path) -> Result<Engine, &'static str> {
-    let model = model::Model::prepare(db_dir, banned_tokens_list);
+pub fn prepare(
+    db_dir:&std::path::Path,
+    non_keyword_tokens_list:&std::path::Path,
+    banned_tokens_list:&std::path::Path,
+) -> Result<Engine, &'static str> {
+    let model = model::Model::prepare(
+        db_dir,
+        non_keyword_tokens_list,
+        banned_tokens_list,
+    );
     
     return Ok(Engine{
     });
