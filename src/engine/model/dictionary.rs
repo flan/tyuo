@@ -72,3 +72,10 @@ impl Dictionary {
     //function to learn from a given input-string, updating the dictionary and
     //returning the identifiers of all tokens received, in sequential order
 }
+
+//TODO: There should be another module that's entirely focused on tokenising
+//input before it reaches the dictionary, to ensure punctuation consistency
+//(and also to filter out banned content before learning can occur)
+//this thing will return a vector of allowed tokens, both for learning and
+//responding, and a boolean value indicating whether learning is even possible.
+//It should be the same input-function for all cases, though.
