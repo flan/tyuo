@@ -48,23 +48,13 @@ impl std::fmt::Debug for DictionaryWord {
     }
 }
 
-pub struct DictionarySlice {
-    //DictionaryWords keyed by ID and representation
-}
-impl DictionarySlice {
-    
-}
-
 pub struct Dictionary {
     //database reference
     //latest ID
     //a list of all words that are never keyword candidates
 }
 impl Dictionary {
-    //function to get a collection of words as a DictionarySlice, holding them
-    //in memory, keyed by ID and case-insensitive repr
-    //this is used to efficiently perform updates while learning and format output
-    //two forms to get this, actually: one by IDs and one by tokens
+    //functions to get a collection of words by token or by ID
     
     //function to derive a HashSet of IDs from a given input string
     //if too few words qualify, a random sample of keyword candidates
