@@ -29,15 +29,17 @@ impl Engine {
     }
 }
 
-pub fn prepare(
+pub fn new(
     db_dir:&std::path::Path,
     non_keyword_tokens_list:&std::path::Path,
     banned_tokens_list:&std::path::Path,
+    parsing_language:&str,
 ) -> Result<Engine, &'static str> {
-    let model = model::Model::prepare(
+    let model = model::Model::new(
         db_dir,
         non_keyword_tokens_list,
         banned_tokens_list,
+        parsing_language,
     );
     
     return Ok(Engine{

@@ -1,9 +1,11 @@
 use crate::engine::model::banned_dictionary;
 use crate::engine::model::dictionary;
+use crate::engine::model::model;
 
 use std::error::Error;
 
 use std::collections::{HashMap, HashSet};
+use fnv::FnvHashMap;
 
 use std::io::{Read, Write};
 
@@ -34,7 +36,7 @@ pub struct Database {
     connection: Connection,
 }
 impl Database {
-    pub fn prepare(connection:Connection) -> Database {
+    pub fn new(connection:Connection) -> Database {
         return Database{
             connection: connection,
         };
@@ -72,7 +74,7 @@ impl Database {
         let mut results = Vec::new();
         let mut rows = stmt.query(tkns)?;
         while let Some(row) = rows.next()? {
-            results.push(banned_dictionary::BannedWord::prepare(
+            results.push(banned_dictionary::BannedWord::new(
                 row.get(0)?,
                 row.get(1)?,
             ));
@@ -166,7 +168,7 @@ impl Database {
                 )?,
                 None => map = HashMap::new(),
             }
-            results.push(dictionary::DictionaryWord::prepare(
+            results.push(dictionary::DictionaryWord::new(
                 row.get(1)?,
                 row.get(2)?,
                 row.get(0)?,
@@ -205,7 +207,7 @@ impl Database {
                 )?,
                 None => map = HashMap::new(),
             }
-            results.push(dictionary::DictionaryWord::prepare(
+            results.push(dictionary::DictionaryWord::new(
                 row.get(1)?,
                 row.get(2)?,
                 row.get(0)?,
@@ -279,10 +281,10 @@ impl Database {
 
 
     pub fn model_get_transitions(&self, direction:&str) {
-
+        
     }
     pub fn model_set_transitions(&self, direction:&str) {
-        //if the node has no transitions, delete it; this efficiently reinforces the banned case
+        
     }
 }
 
@@ -290,7 +292,7 @@ pub struct DatabaseManager {
     db_dir: std::path::PathBuf,
 }
 impl DatabaseManager {
-    pub fn prepare(db_dir:&std::path::Path) -> Box<DatabaseManager> {
+    pub fn new(db_dir:&std::path::Path) -> Box<DatabaseManager> {
         return Box::new(DatabaseManager{
             db_dir: db_dir.to_owned(),
         });
@@ -319,15 +321,17 @@ impl DatabaseManager {
         connection.execute("CREATE TABLE IF NOT EXISTS dictionary_banned (
             caseInsensitiveRepresentation TEXT NOT NULL PRIMARY KEY
         )", params![])?;
+        //for the next two, the JSON structure will never be empty, since there
+        //has to be at least one transition for a write to occur
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_forward (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
-            childrenJSONZLIB BLOB,
+            childrenJSONZLIB BLOB NOT NULL,
 
             FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
         )", params![])?;
         connection.execute("CREATE TABLE IF NOT EXISTS statistics_reverse (
             dictionaryId INTEGER NOT NULL PRIMARY KEY,
-            childrenJSONZLIB BLOB,
+            childrenJSONZLIB BLOB NOT NULL,
 
             FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
         )", params![])?;
@@ -338,7 +342,7 @@ impl DatabaseManager {
         //since only lower-case matches occur, let comparisons be optimal
         connection.execute("PRAGMA case_sensitive_like=true", params![])?;
 
-        return Ok(Database::prepare(connection));
+        return Ok(Database::new(connection));
         /*
         let e = connection.err();
         if e.is_some() {

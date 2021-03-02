@@ -1,6 +1,7 @@
 mod banned_dictionary;
 mod database;
 mod dictionary;
+mod model;
 
 pub fn goodbye() {
     println!("Goodbye, world!");
@@ -14,13 +15,14 @@ pub struct Model {
     //contexts {id: {model(database, dictionary_banned), dictionary(database, non-keyword-tokens list, dictionary_banned), dictionary_banned(database, banned list)}}
 }
 impl Model {
-    pub fn prepare(
+    pub fn new(
         db_dir:&std::path::Path,
         non_keyword_tokens:&std::path::Path,
         banned_tokens_list:&std::path::Path,
+        parsing_language:&str,
     ) -> Model {
         //TODO: dev test
-        let dbm = database::DatabaseManager::prepare(db_dir);
+        let dbm = database::DatabaseManager::new(db_dir);
         let dbr = dbm.load("hi");
         if dbr.is_err(){
             eprintln!("{:?}", dbr.err());
@@ -40,7 +42,7 @@ impl Model {
         }
 
         return Model{
-            database_manager: database::DatabaseManager::prepare(db_dir),
+            database_manager: database::DatabaseManager::new(db_dir),
         };
     }
 

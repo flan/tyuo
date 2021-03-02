@@ -28,20 +28,29 @@ fn main() {
             .about("the path to a file containing banned tokens")
             .default_value(dirs::home_dir().unwrap().join(".tyuo/banned-tokens").to_str().unwrap())
             .takes_value(true))
+        .arg(clap::Arg::new("parsing-language")
+            .long("parsing-language")
+            .about("the natural language to assume when parsing input")
+            .default_value("english")
+            .possible_values(&[
+                "english",
+            ])
+            .takes_value(true))
         .get_matches();
         
     service::hello();
     engine::goodbye();
     
     info!("Preparing engine...");
-    let engine = engine::prepare(
+    let engine = engine::new(
         std::path::Path::new(matches.value_of("db-dir").unwrap()),
         std::path::Path::new(matches.value_of("non-keyword-tokens-list").unwrap()),
         std::path::Path::new(matches.value_of("banned-tokens-list").unwrap()),
+        matches.value_of("parsing-language").unwrap(),
     ).unwrap();
     
     info!("Preparing service...");
-    //let service = service::prepare(engine);
+    //let service = service::new(engine);
     
     info!("Running service...");
     //service.serve_forever();

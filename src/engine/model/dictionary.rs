@@ -9,7 +9,7 @@ pub struct DictionaryWord {
     capitalised_forms: HashMap<String, i32>,
 }
 impl DictionaryWord {
-    pub fn prepare(
+    pub fn new(
         id:i32,
         case_insensitive_occurrences:i32,
         case_insensitive_representation:String,
@@ -23,17 +23,17 @@ impl DictionaryWord {
         };
     }
     
-    pub fn get_id(&self) -> i32 {
-        return self.id.clone();
+    pub fn get_id(&self) -> &i32 {
+        return &self.id;
     }
-    pub fn get_case_insensitive_occurrences(&self) -> i32 {
-        return self.case_insensitive_occurrences.clone();
+    pub fn get_case_insensitive_occurrences(&self) -> &i32 {
+        return &self.case_insensitive_occurrences;
     }
-    pub fn get_case_insensitive_representation(&self) -> String {
-        return self.case_insensitive_representation.clone();
+    pub fn get_case_insensitive_representation(&self) -> &String {
+        return &self.case_insensitive_representation;
     }
-    pub fn get_capitalised_forms(&self) -> HashMap<String, i32> {
-        return self.capitalised_forms.clone();
+    pub fn get_capitalised_forms(&self) -> &HashMap<String, i32> {
+        return &self.capitalised_forms;
     }
     
     pub fn represent(&self, first_token:bool) -> String {
@@ -57,6 +57,7 @@ pub struct Dictionary {
     //database reference
     //latest ID
     //a list of all words that are never keyword candidates
+    //banned words
 }
 impl Dictionary {
     //functions to get a collection of words by token or by ID
