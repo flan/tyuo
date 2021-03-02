@@ -1,5 +1,6 @@
 mod banned_dictionary;
 mod database;
+mod dictionary;
 
 pub fn goodbye() {
     println!("Goodbye, world!");
