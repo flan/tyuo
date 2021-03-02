@@ -68,16 +68,12 @@ impl Database {
         let mut stmt = self.connection.prepare(query_string.as_str())?;
 
         let mut results = Vec::new();
-        for result_row in stmt.query(tkns)? {
-            if result_row.is_ok() {
-                let row = result_row.unwrap();
-                results.push(banned_dictionary::BannedWord::prepare(
-                    row.get(0)?,
-                    row.get(1)?,
-                ));
-            } else {
-                return Err(result_row.unwrap_err());
-            }
+        let mut rows = stmt.query(tkns)?;
+        while let Some(row) = rows.next()? {
+            results.push(banned_dictionary::BannedWord::prepare(
+                row.get(0)?,
+                row.get(1)?,
+            ));
         }
         return Ok(results);
     }
@@ -125,18 +121,14 @@ impl Database {
 
         let mut results = HashMap::new();
         for substring in substrings {
-            for result_row in stmt.query(&[format!("%{}%", substring)])? {
-                if result_row.is_ok() {
-                    let row = result_row.unwrap();
-                    results.insert(row.get(0)?, row.get(1)?);
-                } else {
-                    return Err(result_row.unwrap_err());
-                }
+            let mut rows = stmt.query(&[format!("%{}%", substring)])?;
+            while let Some(row) = rows.next()? {
+                results.insert(row.get(0)?, row.get(1)?);
             }
         }
         return Ok(results);
     }
-    pub fn dictionary_get_words_by_token(&self, tokens:HashSet<&str>) -> Result<Vec<DictionaryWord>, Box<Error>> {
+    pub fn dictionary_get_words_by_token(&self, tokens:HashSet<&str>) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
         let mut array_parms = Vec::with_capacity(tokens.len());
         for idx in 0..tokens.len() {
             array_parms.push(format!("?{}", idx + 1));
@@ -154,23 +146,18 @@ impl Database {
         ", array_parms.join(",")).as_str())?;
 
         let mut results = Vec::with_capacity(tokens.len());
-        for result_row in stmt.query(tokens)? {
-            if result_row.is_ok() {
-                let row = result_row.unwrap();
+        let mut rows = stmt.query(tokens)?;
+        while let Some(row) = rows.next()? {
+            let raw_json:Vec<u8> = row.get(3)?;
+            let raw_json_str = std::str::from_utf8(&raw_json)?;
+            let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
 
-                let raw_json:Vec<u8> = row.get(3)?;
-                let raw_json_str = std::str::from_utf8(&raw_json)?;
-                let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
-
-                results.push(dictionary::DictionaryWord::prepare(
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(0)?,
-                    deserialised_json,
-                ));
-            } else {
-                return Err(result_row.unwrap_err());
-            }
+            results.push(dictionary::DictionaryWord::prepare(
+                row.get(1)?,
+                row.get(2)?,
+                row.get(0)?,
+                deserialised_json,
+            ));
         }
         return Ok(results);
     }
@@ -192,23 +179,18 @@ impl Database {
         ", array_parms.join(",")).as_str())?;
 
         let mut results = Vec::with_capacity(ids.len());
-        for result_row in stmt.query(ids)? {
-            if result_row.is_ok() {
-                let row = result_row.unwrap();
+        let mut rows = stmt.query(ids)?;
+        while let Some(row) = rows.next()? {
+            let raw_json:Vec<u8> = row.get(3)?;
+            let raw_json_str = std::str::from_utf8(&raw_json)?;
+            let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
 
-                let raw_json:Vec<u8> = row.get(3)?;
-                let raw_json_str = std::str::from_utf8(&raw_json)?;
-                let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
-
-                results.push(dictionary::DictionaryWord::prepare(
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(0)?,
-                    deserialised_json,
-                ));
-            } else {
-                return Err(result_row.unwrap_err());
-            }
+            results.push(dictionary::DictionaryWord::prepare(
+                row.get(1)?,
+                row.get(2)?,
+                row.get(0)?,
+                deserialised_json,
+            ));
         }
         return Ok(results);
     }
@@ -221,6 +203,7 @@ impl Database {
         let mut next_identifier:i32 = -2147483648; //lowest allowable identifier
         self.connection.query_row("SELECT MAX(id) FROM dictionary", params![], |row| {
             next_identifier = row.get(0)?;
+            return Ok(());
         })?;
         return Ok(next_identifier);
     }
