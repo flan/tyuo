@@ -11,7 +11,7 @@ pub struct Model {
     //banned list (origin)
     //non-keyword list (origin)
     
-    //contexts {id: {model(database), dictionary(database, non-keyword-tokens list), dictionary_banned(database, banned list)}}
+    //contexts {id: {model(database, dictionary_banned), dictionary(database, non-keyword-tokens list, dictionary_banned), dictionary_banned(database, banned list)}}
 }
 impl Model {
     pub fn prepare(
@@ -28,6 +28,11 @@ impl Model {
             let mut db = dbr.unwrap();
             /* //these use HashSets now
             println!("{:?}", db.banned_ban_tokens(vec!["hi", "bye", "test"]).unwrap());
+            //after calling this, iterate over anything that comes back
+            //and, if it has a dictionary ID, delete related transitions
+            //and scrub capitalised forms of dictionary entries, setting
+            //the insensitive count to 0
+            
             println!("{:?}", db.banned_load_banned_tokens(Some(vec!["hi", "bye", "test"])).unwrap());
             println!("{:?}", db.banned_unban_tokens(vec!["bye"]));
             println!("{:?}", db.banned_load_banned_tokens(None).unwrap());

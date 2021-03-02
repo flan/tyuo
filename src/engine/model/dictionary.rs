@@ -36,7 +36,7 @@ impl DictionaryWord {
         return self.capitalised_forms.clone();
     }
     
-    pub fn represent(&self, firstToken:bool) -> String {
+    pub fn represent(&self, first_token:bool) -> String {
         //see Go for logic
         return "".to_string();
     }
@@ -61,11 +61,13 @@ pub struct Dictionary {
 impl Dictionary {
     //functions to get a collection of words by token or by ID
     
-    //function to derive a HashSet of IDs from a given input string
+    //function to derive a HashSet of IDs from a given input string as keywords
     //if too few words qualify, a random sample of keyword candidates
     //is added in a loop, until the threshold is satisfied.
     //there should probably be a priority ordering of primary candidates (from input)
     //and then secondaries chosen at random
+    //the random set may contain banned words, so do an ID check before allowing
+    //them to become candidates
     
     //function to learn from a given input-string, updating the dictionary and
     //returning the identifiers of all tokens received, in sequential order

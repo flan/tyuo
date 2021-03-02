@@ -158,15 +158,19 @@ impl Database {
         let mut results = Vec::with_capacity(tokens.len());
         let mut rows = stmt.query(tokens)?;
         while let Some(row) = rows.next()? {
-            let raw_json:Vec<u8> = row.get(3)?;
-            let raw_json_str = std::str::from_utf8(&raw_json)?;
-            let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
-
+            let map:HashMap<String, i32>;
+            let raw_json:Option<Vec<u8>> = row.get(3)?;
+            match raw_json {
+                Some(data) => map = serde_json::from_str(
+                    std::str::from_utf8(&data)?,
+                )?,
+                None => map = HashMap::new(),
+            }
             results.push(dictionary::DictionaryWord::prepare(
                 row.get(1)?,
                 row.get(2)?,
                 row.get(0)?,
-                deserialised_json,
+                map,
             ));
         }
         return Ok(results);
@@ -193,15 +197,19 @@ impl Database {
         let mut results = Vec::with_capacity(ids.len());
         let mut rows = stmt.query(ids)?;
         while let Some(row) = rows.next()? {
-            let raw_json:Vec<u8> = row.get(3)?;
-            let raw_json_str = std::str::from_utf8(&raw_json)?;
-            let deserialised_json = serde_json::from_str(raw_json_str).unwrap();
-
+            let map:HashMap<String, i32>;
+            let raw_json:Option<Vec<u8>> = row.get(3)?;
+            match raw_json {
+                Some(data) => map = serde_json::from_str(
+                    std::str::from_utf8(&data)?,
+                )?,
+                None => map = HashMap::new(),
+            }
             results.push(dictionary::DictionaryWord::prepare(
                 row.get(1)?,
                 row.get(2)?,
                 row.get(0)?,
-                deserialised_json,
+                map,
             ));
         }
         return Ok(results);
@@ -241,11 +249,19 @@ impl Database {
                 capitalisedFormsJSON = :cfj
             ")?;
             for word in words {
+                let cfj:Option<Vec<u8>>;
+                let capitalised_forms = word.get_capitalised_forms();
+                if capitalised_forms.len() > 0 {
+                    cfj = Some(serde_json::to_vec(&word.get_capitalised_forms())?);
+                } else {
+                    cfj = None;
+                }
+                
                 stmt.execute_named(named_params!{
                     ":cir": word.get_case_insensitive_representation(),
                     ":id": word.get_id(),
                     ":cio": word.get_case_insensitive_occurrences(),
-                    ":cfj": serde_json::to_vec(&word.get_capitalised_forms())?,
+                    ":cfj": cfj,
                 })?;
             }
         }
