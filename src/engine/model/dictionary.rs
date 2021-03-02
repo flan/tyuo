@@ -35,6 +35,11 @@ impl DictionaryWord {
     pub fn get_capitalised_forms(&self) -> HashMap<String, i32> {
         return self.capitalised_forms.clone();
     }
+    
+    pub fn represent(&self, firstToken:bool) -> String {
+        //see Go for logic
+        return "".to_string();
+    }
 }
 impl std::fmt::Debug for DictionaryWord {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
