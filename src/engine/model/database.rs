@@ -5,31 +5,11 @@ use crate::engine::model::model;
 use std::error::Error;
 
 use std::collections::{HashMap, HashSet};
-use fnv::FnvHashMap;
 
 use std::io::{Read, Write};
 
 use rusqlite::{Connection, named_params, params};
 use serde_json::json;
-
-fn to_json_zlib(serialisable_data:serde_json::Value) -> Vec<u8> {
-    let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
-    encoder.write_all(&serde_json::to_vec(&serialisable_data).unwrap());
-    return encoder.finish().unwrap();
-}
-fn from_json_zlib(blob:Vec<u8>) -> Option<serde_json::Value> {
-    let mut decoder = flate2::read::ZlibDecoder::new(blob.as_slice());
-    let mut decoded = String::new();
-    if decoder.read_to_string(&mut decoded).is_err() {
-        return None;
-    }
-
-    let deserialised_json = serde_json::from_str(decoded.as_str());
-    if deserialised_json.is_ok() {
-        return Some(deserialised_json.unwrap());
-    }
-    return None;
-}
 
 
 pub struct Database {
@@ -280,11 +260,88 @@ impl Database {
     }
 
 
-    pub fn model_get_transitions(&self, direction:&str) {
-        
+    pub fn model_get_transitions(&self,
+        direction:&str,
+        ids:HashSet<&i32>,
+    ) -> Result<fnv::FnvHashMap<i32, fnv::FnvHashMap<i32, model::Transition>>, Box<Error>> {
+        let mut array_parms = Vec::with_capacity(ids.len());
+        for idx in 0..ids.len() {
+            array_parms.push(format!("?{}", idx + 1));
+        }
+
+        let mut stmt = self.connection.prepare(format!("SELECT
+            dictionaryId,
+            childrenJSONZLIB
+        FROM
+            statistics_{}
+        WHERE
+            dictionaryId IN ({})
+        ", direction, array_parms.join(",")).as_str())?;
+
+        let mut results = fnv::FnvHashMap::default();
+        let mut rows = stmt.query(ids)?;
+        while let Some(row) = rows.next()? {
+            let id:i32 = row.get(0)?;
+            
+            let blob:Vec<u8> = row.get(1)?;
+            let mut decoder = flate2::read::ZlibDecoder::new(blob.as_slice());
+            let mut decoded = String::new();
+            decoder.read_to_string(&mut decoded)?;
+            
+            let mut transitions = fnv::FnvHashMap::default();
+            let vec:Vec<serde_json::Value> = serde_json::from_str(decoded.as_str())?;
+            for transition in vec {
+                let dictionary_id:i32 = transition[0].as_i64().unwrap() as i32;
+                let occurrences:i32 = transition[1].as_i64().unwrap() as i32;
+                let last_observed:i64 = transition[1].as_i64().unwrap();
+                
+                transitions.insert(dictionary_id, model::Transition::new(
+                    occurrences,
+                    last_observed,
+                ));
+            }
+            
+            results.insert(id, transitions);
+        }
+        return Ok(results);
     }
-    pub fn model_set_transitions(&self, direction:&str) {
-        
+    pub fn model_set_transitions(&mut self,
+        direction:&str,
+        nodes:Vec<(&i32, HashMap<&i32, model::Transition>)>,
+    ) -> Result<(), Box<Error>> {
+        let tx = self.connection.transaction()?;
+        {
+            let mut stmt = tx.prepare(format!("INSERT INTO statistics_{}(
+                dictionaryId,
+                childrenJSONZLIB
+            ) VALUES (:id, :cjz)
+            ON CONFLICT(dictionaryId) DO UPDATE SET
+                childrenJSONZLIB = :cjz
+            ", direction).as_str())?;
+            for node in nodes {
+                let mut transitions:Vec<(i32, i32, i64)> = Vec::with_capacity(node.1.len());
+                
+                for (transition_dictionary_id, transition) in node.1 {
+                    transitions.push((
+                        transition_dictionary_id.to_owned(),
+                        transition.get_occurrences().to_owned(),
+                        transition.get_last_observed().to_owned(),
+                    ));
+                }
+                let json_data = serde_json::json!(transitions);
+                let serialisable_data = &serde_json::to_vec(&json_data)?;
+                
+                let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+                encoder.write_all(serialisable_data);
+                
+                stmt.execute_named(named_params!{
+                    ":id": node.0,
+                    ":cjz": encoder.finish()?,
+                })?;
+            }
+        }
+        tx.commit()?;
+        return Ok(());
     }
 }
 
@@ -310,8 +367,8 @@ impl DatabaseManager {
         let path = self.resolve_path(id);
         info!("loading database {}...", id);
         let connection = Connection::open(path)?;
-        debug!("preparing database structures...");
 
+        debug!("preparing database structures...");
         connection.execute("CREATE TABLE IF NOT EXISTS dictionary (
             caseInsensitiveRepresentation TEXT NOT NULL UNIQUE,
             id INTEGER NOT NULL PRIMARY KEY,
@@ -343,15 +400,6 @@ impl DatabaseManager {
         connection.execute("PRAGMA case_sensitive_like=true", params![])?;
 
         return Ok(Database::new(connection));
-        /*
-        let e = connection.err();
-        if e.is_some() {
-            error!("unable to load database {}: {}", id, e.unwrap());
-        } else {
-            error!("unable to load database {}", id);
-        }
-        return Err("unable to open database");
-        *///TODO: reuse this error-presentation logic higher up
     }
     pub fn drop(&self, id:&str) -> Result<(), String> {
         if std::fs::remove_file(self.resolve_path(id)).is_ok() {

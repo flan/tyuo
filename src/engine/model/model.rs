@@ -1,6 +1,6 @@
 use crate::engine::model::database;
 
-use fnv::FnvHashMap;
+use fnv::{FnvHashMap, FnvHashSet};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -49,16 +49,19 @@ pub struct Node {
 }
 impl Node {
     //function to increment (or create at 1) transitions within
+    
+    //function to choose a transition
 }
 
 
 pub struct Model {
     //database reference
+    //direction identifier
     //banned words
 }
 impl Model {
     //function to get Nodes by dictionary IDs
     //when loading transitions, scrub banned targets and anything that has expired
     
-    //function to save a Node
+    //function to save Nodes
 }
