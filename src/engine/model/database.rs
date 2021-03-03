@@ -23,9 +23,9 @@ impl Database {
     }
 
 
-    pub fn banned_load_banned_tokens(&mut self,
+    pub fn banned_load_banned_tokens(&self,
         tokens:Option<HashSet<&str>>,
-    ) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
+    ) -> Result<Vec<banned_dictionary::BannedToken>, Box<Error>> {
         let tkns:HashSet<&str>;
         let mut query_string:String = "SELECT
             banned.caseInsensitiveRepresentation,
@@ -54,7 +54,7 @@ impl Database {
         let mut results = Vec::new();
         let mut rows = stmt.query(tkns)?;
         while let Some(row) = rows.next()? {
-            results.push(banned_dictionary::BannedWord::new(
+            results.push(banned_dictionary::BannedToken::new(
                 row.get(0)?,
                 row.get(1)?,
             ));
@@ -63,7 +63,7 @@ impl Database {
     }
     pub fn banned_ban_tokens(&mut self,
         tokens:HashSet<&str>,
-    ) -> Result<Vec<banned_dictionary::BannedWord>, Box<Error>> {
+    ) -> Result<Vec<banned_dictionary::BannedToken>, Box<Error>> {
         let tx = self.connection.transaction()?;
         {
             let mut insert_stmt = tx.prepare("INSERT INTO

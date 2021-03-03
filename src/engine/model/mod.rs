@@ -9,7 +9,8 @@ pub fn goodbye() {
 
 pub struct Model {
     database_manager: Box<database::DatabaseManager>,
-    //banned list (origin)
+    
+    banned_tokens_generic: Vec<String>,
     //non-keyword list (origin)
     
     //contexts {id: {model(database, dictionary_banned), dictionary(database, non-keyword-tokens list, dictionary_banned), dictionary_banned(database, banned list)}}
@@ -21,6 +22,8 @@ impl Model {
         banned_tokens_list:&std::path::Path,
         parsing_language:&str,
     ) -> Model {
+        
+        
         //TODO: dev test
         let dbm = database::DatabaseManager::new(db_dir);
         let dbr = dbm.load("hi");
@@ -43,6 +46,10 @@ impl Model {
 
         return Model{
             database_manager: database::DatabaseManager::new(db_dir),
+            
+            banned_tokens_generic: banned_dictionary::process_banned_tokens_list(
+                banned_tokens_list,
+            ),
         };
     }
 
