@@ -345,14 +345,18 @@ impl Database {
     }
 }
 
-pub struct DatabaseManager {
+pub struct DatabaseManager<'dbm> {
     db_dir: std::path::PathBuf,
+    
+    databases: HashMap<&'dbm str, Database>,
 }
-impl DatabaseManager {
-    pub fn new(db_dir:&std::path::Path) -> Box<DatabaseManager> {
-        return Box::new(DatabaseManager{
+impl<'dbm> DatabaseManager<'dbm> {
+    pub fn new(db_dir:&std::path::Path) -> DatabaseManager<'dbm> {
+        return DatabaseManager{
             db_dir: db_dir.to_owned(),
-        });
+            
+            databases: HashMap::new(),
+        };
     }
 
     fn resolve_path(&self, id:&str) -> std::path::PathBuf {
