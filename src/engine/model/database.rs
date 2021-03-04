@@ -24,9 +24,9 @@ impl Database {
 
 
     pub fn banned_load_banned_tokens(&self,
-        tokens:Option<HashSet<&str>>,
+        tokens:Option<&HashSet<&str>>,
     ) -> Result<Vec<banned_dictionary::BannedToken>, Box<Error>> {
-        let tkns:HashSet<&str>;
+        let mut tkns:&HashSet<&str> = &HashSet::new();
         let mut query_string:String = "SELECT
             banned.caseInsensitiveRepresentation,
             dict.id
@@ -46,8 +46,6 @@ impl Database {
             query_string.push_str(format!("WHERE
                 banned.caseInsensitiveRepresentation IN ({})
             ", array_parms.join(",")).as_str());
-        } else {
-            tkns = HashSet::new();
         }
         let mut stmt = self.connection.prepare(query_string.as_str())?;
 
@@ -62,7 +60,7 @@ impl Database {
         return Ok(results);
     }
     pub fn banned_ban_tokens(&mut self,
-        tokens:HashSet<&str>,
+        tokens:&HashSet<&str>,
     ) -> Result<Vec<banned_dictionary::BannedToken>, Box<Error>> {
         let tx = self.connection.transaction()?;
         {
@@ -71,7 +69,7 @@ impl Database {
             VALUES (?1)
             ON CONFLICT DO NOTHING
             ")?;
-            for token in &tokens {
+            for token in tokens {
                 insert_stmt.execute(&[token])?;
             }
         }
@@ -80,7 +78,7 @@ impl Database {
         return self.banned_load_banned_tokens(Some(tokens));
     }
     pub fn banned_unban_tokens(&self,
-        tokens:HashSet<&str>,
+        tokens:&HashSet<&str>,
     ) -> Result<(), Box<Error>> {
         let mut array_parms = Vec::with_capacity(tokens.len());
         for idx in 0..tokens.len() {
@@ -97,8 +95,8 @@ impl Database {
     }
 
 
-    pub fn dictionary_enumerate_words_by_substring(&self,
-        substrings:HashSet<&str>,
+    pub fn dictionary_enumerate_tokens_by_substring(&self,
+        substrings:&HashSet<&str>,
     ) -> Result<HashMap<String, i32>, Box<Error>> {
         let mut stmt = self.connection.prepare("SELECT
             caseInsensitiveRepresentation,
@@ -118,9 +116,9 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_get_words_by_token(&self,
-        tokens:HashSet<&str>,
-    ) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
+    pub fn dictionary_get_tokens_by_token(&self,
+        tokens:&HashSet<&str>,
+    ) -> Result<Vec<dictionary::DictionaryToken>, Box<Error>> {
         let mut array_parms = Vec::with_capacity(tokens.len());
         for idx in 0..tokens.len() {
             array_parms.push(format!("?{}", idx + 1));
@@ -148,7 +146,7 @@ impl Database {
                 )?,
                 None => map = HashMap::new(),
             }
-            results.push(dictionary::DictionaryWord::new(
+            results.push(dictionary::DictionaryToken::new(
                 row.get(1)?,
                 row.get(2)?,
                 row.get(0)?,
@@ -157,9 +155,9 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_get_words_by_id(&self,
-        ids:HashSet<i32>,
-    ) -> Result<Vec<dictionary::DictionaryWord>, Box<Error>> {
+    pub fn dictionary_get_tokens_by_id(&self,
+        ids:&HashSet<i32>,
+    ) -> Result<Vec<dictionary::DictionaryToken>, Box<Error>> {
         let mut array_parms = Vec::with_capacity(ids.len());
         for idx in 0..ids.len() {
             array_parms.push(format!("?{}", idx + 1));
@@ -187,7 +185,7 @@ impl Database {
                 )?,
                 None => map = HashMap::new(),
             }
-            results.push(dictionary::DictionaryWord::new(
+            results.push(dictionary::DictionaryToken::new(
                 row.get(1)?,
                 row.get(2)?,
                 row.get(0)?,
@@ -196,7 +194,7 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_get_random_words(&self,
+    pub fn dictionary_get_random_tokens(&self,
         count:u8,
     ) -> Result<Vec<(String, i32)>, Box<Error>> {
         let mut stmt = self.connection.prepare(format!("SELECT
@@ -215,8 +213,8 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_set_words(&mut self,
-        words:HashSet<dictionary::DictionaryWord>,
+    pub fn dictionary_set_tokens(&mut self,
+        tokens:HashSet<dictionary::DictionaryToken>,
     ) -> Result<(), Box<Error>> {
         let tx = self.connection.transaction()?;
         {
@@ -230,19 +228,19 @@ impl Database {
                 caseSensitiveOccurrences = :cio,
                 capitalisedFormsJSON = :cfj
             ")?;
-            for word in words {
+            for token in tokens {
                 let cfj:Option<Vec<u8>>;
-                let capitalised_forms = word.get_capitalised_forms();
+                let capitalised_forms = token.get_capitalised_forms();
                 if capitalised_forms.len() > 0 {
-                    cfj = Some(serde_json::to_vec(&word.get_capitalised_forms())?);
+                    cfj = Some(serde_json::to_vec(&token.get_capitalised_forms())?);
                 } else {
                     cfj = None;
                 }
                 
                 stmt.execute_named(named_params!{
-                    ":cir": word.get_case_insensitive_representation(),
-                    ":id": word.get_id(),
-                    ":cio": word.get_case_insensitive_occurrences(),
+                    ":cir": token.get_case_insensitive_representation(),
+                    ":id": token.get_id(),
+                    ":cio": token.get_case_insensitive_occurrences(),
                     ":cfj": cfj,
                 })?;
             }
@@ -348,7 +346,7 @@ impl Database {
 pub struct DatabaseManager<'dbm> {
     db_dir: std::path::PathBuf,
     
-    databases: HashMap<&'dbm str, Database>,
+    databases: HashMap<&'dbm str, Box<Database>>,
 }
 impl<'dbm> DatabaseManager<'dbm> {
     pub fn new(db_dir:&std::path::Path) -> DatabaseManager<'dbm> {

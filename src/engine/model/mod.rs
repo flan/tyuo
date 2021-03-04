@@ -12,7 +12,7 @@ pub fn goodbye() {
 pub struct Model<'md> {
     database_manager: database::DatabaseManager<'md>,
     
-    banned_tokens_generic: Vec<Box<str>>,
+    banned_tokens_generic: Vec<String>,
     //non-keyword list (origin)
     
     //contexts {id: {model(database, dictionary_banned), dictionary(database, non-keyword-tokens list, dictionary_banned), dictionary_banned(database, banned list)}}
@@ -52,6 +52,16 @@ impl<'md> Model<'md> {
         )?;
         
         println!("{:?}", banned_tokens_generic);
+        
+        let bd = banned_dictionary::BannedDictionary::new(
+            &mut Box::new(database_manager.load("hi").unwrap()),
+            &banned_tokens_generic,
+        );
+        bd.ban(&vec!["hello", "desu", "bye"])?;
+        println!("{:?}", db.is_banned_by_token(&vec!["goodbye", "oh"]));
+        bd.unban(&vec!["bye"])?;
+        println!("{:?}", db.is_banned_by_token(&vec!["goodbye", "desu"]));
+        
         println!("hi2");
         
         return Ok(Model{
