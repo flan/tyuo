@@ -69,6 +69,10 @@ impl Dictionary {
     //and then secondaries chosen at random
     //the random set may contain banned tokens, so do an ID check before allowing
     //them to become candidates
+    //also, when choosing random words from the set, target words in the
+    //second-to-last fifth of frequency, scaling towards more common, to avoid
+    //basic typos, but also to increase the likelihood of choosing an interesting
+    //word.
     
     //function to learn from a given input-string, updating the dictionary and
     //returning the identifiers of all tokens received, in sequential order
