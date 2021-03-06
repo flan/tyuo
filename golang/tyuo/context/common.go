@@ -11,9 +11,11 @@ type void struct{}
 var voidInstance = void{}
 
 //used to denote the end of a sentence, so it will never be a valid ID
-const undefinedDictionaryId int32 = -2147483648
+const undefinedDictionaryId = -2147483648 //int32 minimum; should constrain database sizing
 
-const rescaleThreshold int32 = 1000
-const rescaleDecimator int32 = 3
+//TODO: these should be flags
+const rescaleThreshold = 1000.0
+const rescaleDecimator = 3.0
+//NOTE: when decimating, use math.RoundToEven to get to 0 faster to slimite obsolete paths
 
 var rng = rand.New(rand.NewSource(time.Now().Unix()))

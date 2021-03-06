@@ -7,7 +7,7 @@ import (
 
 type bannedToken struct {
     caseInsensitiveRepresentation string
-    dictionaryId int32
+    dictionaryId int
 }
 
 
@@ -38,7 +38,7 @@ type bannedDictionary struct {
     
     //words from database
     bannedTokens []bannedToken
-    bannedIds map[int32]void
+    bannedIds map[int]void
     
     //tokens from the list
     bannedTokensGeneric []string
@@ -48,7 +48,7 @@ func prepareBannedDictionary(
     bannedTokensGeneric []string,
 ) (*bannedDictionary, error) {
     bannedTokens := make([]bannedToken, 0)
-    bannedIds := make(map[int32]void)
+    bannedIds := make(map[int]void)
     
     if bts, err := database.bannedLoadBannedTokens(nil); err == nil {
         for _, bt := range bts {
@@ -104,7 +104,7 @@ func (bd *bannedDictionary) ban(tokens map[string]bool) (error) {
     return nil
 }
 func (bd *bannedDictionary) unban(tokens map[string]bool) (error) {
-    bannedTokenIndexes := make([]int32, 0, len(tokens))
+    bannedTokenIndexes := make([]int, 0, len(tokens))
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
         lcaseToken := strings.ToLower(token)
@@ -153,7 +153,7 @@ func (bd *bannedDictionary) isBannedByToken(tokens map[string]bool) (bool) {
     }
     return false;
 }
-func (bd *bannedDictionary) isBannedById(ids map[int32]bool) (bool) {
+func (bd *bannedDictionary) isBannedById(ids map[int]bool) (bool) {
     for id := range ids {
         if _, defined := bd.bannedIds[id]; defined {
             return true;

@@ -1,15 +1,16 @@
 package context
 import (
     "database/sql"
-    "path/filepath"
+    "encoding/json"
     "fmt"
     "os"
+    "path/filepath"
     "strings"
 
     _ "github.com/mattn/go-sqlite3"
 )
 
-func prepareSqliteArrayParams(start int32, count int32) (string) {
+func prepareSqliteArrayParams(start int, count int) (string) {
     arrayParams := make([]string, count)
     for i := 0; i < count; i++ {
         arrayParams[i] = fmt.Sprintf("?%d", start + i)
@@ -21,6 +22,27 @@ func stringSliceToInterfaceSlice(s []string) ([]interface{}) {
     output := make([]interface{}, len(s))
     for i, v := range(s) {
         output[i] = v
+    }
+    return output
+}
+func intSliceToInterfaceSlice(s []int) ([]interface{}) {
+    output := make([]interface{}, len(s))
+    for i, v := range(s) {
+        output[i] = v
+    }
+    return output
+}
+func stringSetToInterfaceSlice(s map[string]void) ([]interface{}) {
+    output := make([]interface{}, 0, len(s))
+    for k, _ := range(s) {
+        output = append(output, k)
+    }
+    return output
+}
+func intSetToInterfaceSlice(s map[int]void) ([]interface{}) {
+    output := make([]interface{}, 0, len(s))
+    for k, _ := range(s) {
+        output = append(output, k)
     }
     return output
 }
@@ -41,7 +63,7 @@ func prepareDatabase(
         caseInsensitiveRepresentation TEXT NOT NULL UNIQUE,
         id INTEGER NOT NULL PRIMARY KEY,
         caseInsensitiveOccurrences INTEGER NOT NULL,
-        capitalisedFormsJSON BLOB
+        capitalisedFormsJSON TEXT
     )`); err != nil {
         connection.Close()
         return nil, err
@@ -145,7 +167,8 @@ func (db *Database) Close() (error) {
 func (db *Database) bannedLoadBannedTokens(
     tokenSubset []string,
 ) ([]bannedToken, error) {
-    query := `SELECT
+    query := `
+    SELECT
         banned.caseInsensitiveRepresentation,
         dict.id
     FROM
@@ -169,8 +192,8 @@ func (db *Database) bannedLoadBannedTokens(
         output := make([]bannedToken, 0)
         for rows.Next() {
             var cir string
-            var did int32
-            if err:= rows.Scan(&cir, &did); err != nil {
+            var did int
+            if err:= rows.Scan(&cir, &did); err == nil {
                 output = append(output, bannedToken{
                     caseInsensitiveRepresentation: cir,
                     dictionaryId: did,
@@ -190,7 +213,8 @@ func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
         return nil, err
     }
     
-    const query = `INSERT INTO
+    const query = `
+    INSERT INTO
         dictionary_banned(caseInsensitiveRepresentation)
     VALUES (?1)
     ON CONFLICT DO NOTHING
@@ -201,7 +225,9 @@ func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
                 break
             }
         }
-        stmt.Close()
+        if e := stmt.Close(); e != nil {
+            logger.Warningf("unable to close statement: %s", e)
+        }
     }
     if err != nil {
         tx.Rollback()
@@ -213,8 +239,8 @@ func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
     return db.bannedLoadBannedTokens(tokens);
 }
 func (db *Database) bannedUnbanTokens(tokens []string) (error) {
-    query := fmt.Sprintf(`DELETE
-    FROM
+    query := fmt.Sprintf(`
+    DELETE FROM
         dictionary_banned
     WHERE caseInsensitiveRepresentation IN (%s)
     `, prepareSqliteArrayParams(1, len(tokens)))
@@ -224,156 +250,211 @@ func (db *Database) bannedUnbanTokens(tokens []string) (error) {
 }
 
 
-
+func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]float64) {
+    if data.Valid {
+        var buffer map[string]interface{} = nil
+        if err := json.Unmarshal([]byte(data.String), &buffer); err == nil {
+            deserialised := make(map[string]float64, len(buffer))
+            for k, v := range buffer {
+                if deserialisedV, okay := v.(float64); okay {
+                    deserialised[k] = deserialisedV
+                } /*else { //otherwise, silently let it get dropped
+                    logger.Warningf("unable to infer count for %s in capitalisedFormsJSON; reinitialising state: %s", k, err)
+                }*/
+            }
+            return deserialised
+        } /*else { //otherwise, silently reinitialise state
+            logger.Warningf("unable to deserialise capitalisedFormsJSON; reinitialising state: %s", err)
+        }*/
+    }
+    return make(map[string]float64, 0)
+}
+func serialiseCapitalisedFormsJSON(data map[string]float64) (interface{}) {
+    if len(data) == 0 {
+        return nil
+    }
+    
+    if buffer, err := json.Marshal(data); err == nil {
+        return buffer
+    } else {
+        logger.Warningf("unable to serialise capitalisedFormsJSON; reinitialising state: %s", err)
+        return nil
+    }
+}
+func (db *Database) dictionaryEnumerateTokensBySubstring(tokens map[string]void) (map[string]int, error) {
+    if stmt, err := db.connection.Prepare(`
+    SELECT
+        caseInsensitiveRepresentation,
+        id
+    FROM
+        dictionary
+    WHERE
+        caseInsensitiveRepresentation LIKE ?1
+    `); err == nil {
+        defer stmt.Close()
+        
+        output := make(map[string]int)
+        for token := range tokens {
+            if rows, err := stmt.Query(fmt.Sprintf("%%%s%%", token)); err == nil {
+                defer rows.Close()
+                for rows.Next() {
+                    var cir string
+                    var did int
+                    if err:= rows.Scan(&cir, &did); err == nil {
+                        output[cir] = did
+                    } else {
+                        return nil, err
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func processDictionaryRows(maxCount int, rows *sql.Rows) ([]dictionaryToken, error) {
+    output := make([]dictionaryToken, 0, maxCount)
+    for rows.Next() {
+        var cir string
+        var did int
+        var cio int
+        var cfj sql.NullString
+        if err:= rows.Scan(&cir, &did, &cio, &cfj); err == nil {
+            output = append(output, dictionaryToken{
+                id: did,
+                caseInsensitiveRepresentation: cir,
+                caseInsensitiveOccurrences: cio,
+                capitalisedForms: deserialiseCapitalisedFormsJSON(&cfj),
+            })
+        } else {
+            return nil, err
+        }
+    }
+    return output, nil
+}
+func (db *Database) dictionaryGetTokensByToken(tokens map[string]void) ([]dictionaryToken, error) {
+    if len(tokens) == 0 {
+        return make([]dictionaryToken, 0), nil
+    }
+    
+    query := fmt.Sprintf(`
+    SELECT
+        caseInsensitiveRepresentation,
+        id,
+        caseInsensitiveOccurrences,
+        capitalisedFormsJSON
+    FROM
+        dictionary
+    WHERE
+        caseInsensitiveRepresentation IN ({})
+    `, prepareSqliteArrayParams(1, len(tokens)))
+    
+    if rows, err := db.connection.Query(
+        query,
+        stringSetToInterfaceSlice(tokens)...,
+    ); err == nil {
+        defer rows.Close()
+        return processDictionaryRows(len(tokens), rows)
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) dictionaryGetTokensById(ids map[int]void) ([]dictionaryToken, error) {
+    if len(ids) == 0 {
+        return make([]dictionaryToken, 0), nil
+    }
+    
+    query := fmt.Sprintf(`
+    SELECT
+        caseInsensitiveRepresentation,
+        id,
+        caseInsensitiveOccurrences,
+        capitalisedFormsJSON
+    FROM
+        dictionary
+    WHERE
+        id IN ({})
+    `, prepareSqliteArrayParams(1, len(ids)))
+    
+    if rows, err := db.connection.Query(
+        query,
+        intSetToInterfaceSlice(ids)...,
+    ); err == nil {
+        defer rows.Close()
+        return processDictionaryRows(len(ids), rows)
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
+    if len(tokens) == 0 {
+        return nil
+    }
+    
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return err
+    }
+    
+    if stmt, err := tx.Prepare(`
+    INSERT INTO dictionary(
+        caseInsensitiveRepresentation,
+        id,
+        caseInsensitiveOccurrences,
+        capitalisedFormsJSON
+    ) VALUES (?1, ?2, ?3, ?4)
+    ON CONFLICT(id) DO UPDATE SET
+        caseInsensitiveOccurrences = ?5,
+        capitalisedFormsJSON = ?6
+    `); err == nil {
+        for _, token := range tokens {
+            cfj := serialiseCapitalisedFormsJSON(token.capitalisedForms)
+            
+            if _, err = stmt.Exec(
+                token.caseInsensitiveRepresentation,
+                token.id,
+                token.caseInsensitiveOccurrences,
+                cfj,
+                //update-case:
+                token.caseInsensitiveOccurrences,
+                cfj,
+            ); err != nil {
+                if e := stmt.Close(); e != nil {
+                    logger.Warningf("unable to close statement: %s", e)
+                }
+                if e := tx.Rollback(); e != nil {
+                    logger.Warningf("unable to roll-back transaction: %s", e)
+                }
+                return err
+            }
+        }
+        stmt.Close()
+    } else {
+        if e := tx.Rollback(); e != nil {
+            logger.Warningf("unable to roll-back transaction: %s", e)
+        }
+        return err
+    }
+    return tx.Commit()
+}
+func (db *Database) dictionaryGetNextIdentifier() (int, error) {
+    var maxIdentifier = undefinedDictionaryId //lowest allowable identifier, used to initialise dictionaries
+    const query = "SELECT MAX(id) FROM dictionary"
+    row := db.connection.QueryRow(query)
+    if err := row.Scan(&maxIdentifier); err != nil {
+        if err != sql.ErrNoRows {
+            return maxIdentifier, err
+        }
+    }
+    return maxIdentifier + 1, nil
+}
 
 
 /*
 impl Database {
-
-    pub fn dictionary_enumerate_tokens_by_substring(&self,
-        substrings:&HashSet<&str>,
-    ) -> Result<HashMap<String, i32>, Box<Error>> {
-        let mut stmt = self.connection.prepare("SELECT
-            caseInsensitiveRepresentation,
-            id
-        FROM
-            dictionary
-        WHERE
-            caseInsensitiveRepresentation LIKE ?1
-        ")?;
-
-        let mut results = HashMap::new();
-        for substring in substrings {
-            let mut rows = stmt.query(&[format!("%{}%", substring)])?;
-            while let Some(row) = rows.next()? {
-                results.insert(row.get(0)?, row.get(1)?);
-            }
-        }
-        return Ok(results);
-    }
-    pub fn dictionary_get_tokens_by_token(&self,
-        tokens:&HashSet<&str>,
-    ) -> Result<Vec<dictionary::DictionaryToken>, Box<Error>> {
-        let mut array_parms = Vec::with_capacity(tokens.len());
-        for idx in 0..tokens.len() {
-            array_parms.push(format!("?{}", idx + 1));
-        }
-
-        let mut stmt = self.connection.prepare(format!("SELECT
-            caseInsensitiveRepresentation,
-            id,
-            caseInsensitiveOccurrences,
-            capitalisedFormsJSON
-        FROM
-            dictionary
-        WHERE
-            caseInsensitiveRepresentation IN ({})
-        ", array_parms.join(",")).as_str())?;
-
-        let mut results = Vec::with_capacity(tokens.len());
-        let mut rows = stmt.query(tokens)?;
-        while let Some(row) = rows.next()? {
-            let map:HashMap<String, i32>;
-            let raw_json:Option<Vec<u8>> = row.get(3)?;
-            match raw_json {
-                Some(data) => map = serde_json::from_str(
-                    std::str::from_utf8(&data)?,
-                )?,
-                None => map = HashMap::new(),
-            }
-            results.push(dictionary::DictionaryToken::new(
-                row.get(1)?,
-                row.get(2)?,
-                row.get(0)?,
-                map,
-            ));
-        }
-        return Ok(results);
-    }
-    pub fn dictionary_get_tokens_by_id(&self,
-        ids:&HashSet<i32>,
-    ) -> Result<Vec<dictionary::DictionaryToken>, Box<Error>> {
-        let mut array_parms = Vec::with_capacity(ids.len());
-        for idx in 0..ids.len() {
-            array_parms.push(format!("?{}", idx + 1));
-        }
-
-        let mut stmt = self.connection.prepare(format!("SELECT
-            caseInsensitiveRepresentation,
-            id,
-            caseInsensitiveOccurrences,
-            capitalisedFormsJSON
-        FROM
-            dictionary
-        WHERE
-            id IN ({})
-        ", array_parms.join(",")).as_str())?;
-
-        let mut results = Vec::with_capacity(ids.len());
-        let mut rows = stmt.query(ids)?;
-        while let Some(row) = rows.next()? {
-            let map:HashMap<String, i32>;
-            let raw_json:Option<Vec<u8>> = row.get(3)?;
-            match raw_json {
-                Some(data) => map = serde_json::from_str(
-                    std::str::from_utf8(&data)?,
-                )?,
-                None => map = HashMap::new(),
-            }
-            results.push(dictionary::DictionaryToken::new(
-                row.get(1)?,
-                row.get(2)?,
-                row.get(0)?,
-                map,
-            ));
-        }
-        return Ok(results);
-    }
-    pub fn dictionary_set_tokens(&mut self,
-        tokens:HashSet<dictionary::DictionaryToken>,
-    ) -> Result<(), Box<Error>> {
-        let tx = self.connection.transaction()?;
-        {
-            let mut stmt = tx.prepare("INSERT INTO dictionary(
-                caseInsensitiveRepresentation,
-                id,
-                caseInsensitiveOccurrences,
-                capitalisedFormsJSON
-            ) VALUES (:cir, :id, :cio, :cfj)
-            ON CONFLICT(id) DO UPDATE SET
-                caseSensitiveOccurrences = :cio,
-                capitalisedFormsJSON = :cfj
-            ")?;
-            for token in tokens {
-                let cfj:Option<Vec<u8>>;
-                let capitalised_forms = token.get_capitalised_forms();
-                if capitalised_forms.len() > 0 {
-                    cfj = Some(serde_json::to_vec(&token.get_capitalised_forms())?);
-                } else {
-                    cfj = None;
-                }
-                
-                stmt.execute_named(named_params!{
-                    ":cir": token.get_case_insensitive_representation(),
-                    ":id": token.get_id(),
-                    ":cio": token.get_case_insensitive_occurrences(),
-                    ":cfj": cfj,
-                })?;
-            }
-        }
-        tx.commit()?;
-        return Ok(());
-    }
-    pub fn dictionary_get_next_identifier(&self) -> Result<i32, Box<Error>>{
-        let mut next_identifier:i32 = -2147483648; //lowest allowable identifier
-        self.connection.query_row("SELECT MAX(id) FROM dictionary", params![], |row| {
-            next_identifier = row.get(0)?;
-            return Ok(());
-        })?;
-        return Ok(next_identifier);
-    }
-
-
     pub fn model_get_transitions(&self,
         direction:&str,
         ids:HashSet<&i32>,

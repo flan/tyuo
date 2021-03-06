@@ -8,7 +8,7 @@ import (
 var logger = loggo.GetLogger("logic")
 
 //used to denote the end of a sentence
-const sentenceBoundary int = -2147483648
+const sentenceBoundary = -2147483648 //int32 minimum; should constrain database sizing
 
 //the number of sibling-branches to consider for each node in depth-first
 //traversal
@@ -35,11 +35,11 @@ const sentenceBoundary int = -2147483648
 //when doing a markov walk, choose anything in the keyword set first, if possible
 
 //TODO: these should be flag-parameters
-const searchBranches int32 = 5
+const searchBranches = 5
 //probability of stopping after each node, upon encountering a terminal
-const searchMinDepth int32 = 2
-const searchMaxDepth int32 = 30
+const searchMinDepth = 2
+const searchMaxDepth = 30
 //probability of stopping on each node, if a terminal is in the set
-const searchStopProbability float32 = 0.3
+const searchStopProbability = 0.3
 
 var rng := rand.New(rand.NewSource(time.Now().Unix()))
