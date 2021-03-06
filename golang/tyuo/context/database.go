@@ -47,6 +47,9 @@ func intSetToInterfaceSlice(s map[int]void) ([]interface{}) {
     return output
 }
 
+
+
+
 type Database struct {
     connection *sql.DB
 }
@@ -164,90 +167,8 @@ func prepareDatabase(
 func (db *Database) Close() (error) {
     return db.connection.Close()
 }
-func (db *Database) bannedLoadBannedTokens(
-    tokenSubset []string,
-) ([]bannedToken, error) {
-    query := `
-    SELECT
-        banned.caseInsensitiveRepresentation,
-        dict.id
-    FROM
-        dictionary_banned AS banned
-    LEFT JOIN dictionary AS dict ON
-        banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
-    `
-    
-    if len(tokenSubset) > 0 {
-        query += fmt.Sprintf(
-            "WHERE banned.caseInsensitiveRepresentation IN (%s)",
-            prepareSqliteArrayParams(1, len(tokenSubset)),
-        )
-    }
-    if rows, err := db.connection.Query(
-        query,
-        stringSliceToInterfaceSlice(tokenSubset)...,
-    ); err == nil {
-        defer rows.Close()
-        
-        output := make([]bannedToken, 0)
-        for rows.Next() {
-            var cir string
-            var did int
-            if err:= rows.Scan(&cir, &did); err == nil {
-                output = append(output, bannedToken{
-                    caseInsensitiveRepresentation: cir,
-                    dictionaryId: did,
-                })
-            } else {
-                return nil, err
-            }
-        }
-        return output, nil
-    } else {
-        return nil, err
-    }
-}
-func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
-    tx, err := db.connection.Begin()
-    if err != nil {
-        return nil, err
-    }
-    
-    const query = `
-    INSERT INTO
-        dictionary_banned(caseInsensitiveRepresentation)
-    VALUES (?1)
-    ON CONFLICT DO NOTHING
-    `
-    if stmt, err := tx.Prepare(query); err == nil {
-        for _, token := range tokens {
-            if _, err = stmt.Exec(token); err != nil {
-                break
-            }
-        }
-        if e := stmt.Close(); e != nil {
-            logger.Warningf("unable to close statement: %s", e)
-        }
-    }
-    if err != nil {
-        tx.Rollback()
-        return nil, err
-    }
-    if err = tx.Commit(); err != nil {
-        return nil, err
-    }
-    return db.bannedLoadBannedTokens(tokens);
-}
-func (db *Database) bannedUnbanTokens(tokens []string) (error) {
-    query := fmt.Sprintf(`
-    DELETE FROM
-        dictionary_banned
-    WHERE caseInsensitiveRepresentation IN (%s)
-    `, prepareSqliteArrayParams(1, len(tokens)))
-    
-    _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(tokens)...)
-    return err
-}
+
+
 
 
 func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]float64) {
@@ -451,6 +372,96 @@ func (db *Database) dictionaryGetNextIdentifier() (int, error) {
     }
     return maxIdentifier + 1, nil
 }
+
+
+
+
+func (db *Database) bannedLoadBannedTokens(
+    tokenSubset []string,
+) ([]bannedToken, error) {
+    query := `
+    SELECT
+        banned.caseInsensitiveRepresentation,
+        dict.id
+    FROM
+        dictionary_banned AS banned
+    LEFT JOIN dictionary AS dict ON
+        banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
+    `
+    
+    if len(tokenSubset) > 0 {
+        query += fmt.Sprintf(
+            "WHERE banned.caseInsensitiveRepresentation IN (%s)",
+            prepareSqliteArrayParams(1, len(tokenSubset)),
+        )
+    }
+    if rows, err := db.connection.Query(
+        query,
+        stringSliceToInterfaceSlice(tokenSubset)...,
+    ); err == nil {
+        defer rows.Close()
+        
+        output := make([]bannedToken, 0)
+        for rows.Next() {
+            var cir string
+            var did int
+            if err:= rows.Scan(&cir, &did); err == nil {
+                output = append(output, bannedToken{
+                    caseInsensitiveRepresentation: cir,
+                    dictionaryId: did,
+                })
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return nil, err
+    }
+    
+    const query = `
+    INSERT INTO
+        dictionary_banned(caseInsensitiveRepresentation)
+    VALUES (?1)
+    ON CONFLICT DO NOTHING
+    `
+    if stmt, err := tx.Prepare(query); err == nil {
+        for _, token := range tokens {
+            if _, err = stmt.Exec(token); err != nil {
+                break
+            }
+        }
+        if e := stmt.Close(); e != nil {
+            logger.Warningf("unable to close statement: %s", e)
+        }
+    }
+    if err != nil {
+        tx.Rollback()
+        return nil, err
+    }
+    if err = tx.Commit(); err != nil {
+        return nil, err
+    }
+    return db.bannedLoadBannedTokens(tokens);
+}
+func (db *Database) bannedUnbanTokens(tokens []string) (error) {
+    query := fmt.Sprintf(`
+    DELETE FROM
+        dictionary_banned
+    WHERE caseInsensitiveRepresentation IN (%s)
+    `, prepareSqliteArrayParams(1, len(tokens)))
+    
+    _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(tokens)...)
+    return err
+}
+
+
 
 
 /*
