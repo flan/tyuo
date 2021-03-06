@@ -1,14 +1,29 @@
-package context;
+package context
 import (
     "database/sql"
-    "filepath"
+    "path/filepath"
     "fmt"
     "os"
-    "os/user"
+    "strings"
 
     _ "github.com/mattn/go-sqlite3"
 )
 
+func prepareSqliteArrayParams(start int, count int) (string) {
+    arrayParams := make([]string, count)
+    for i := 0; i < count; i++ {
+        arrayParams[i] = fmt.Sprintf("?%d", start + i)
+    }
+    return strings.Join(arrayParams, ",")
+}
+
+func stringSliceToInterfaceSlice(s []string) ([]interface{}) {
+    output := make([]interface{}, len(s))
+    for i, v := range(s) {
+        output[i] = v
+    }
+    return output
+}
 
 type Database struct {
     connection *sql.DB
@@ -72,14 +87,14 @@ func prepareDatabase(
 
     return &Database{
         connection: connection,
-    }
+    }, nil
 }
-func (db *Database) Close() {
-    db.connection.Close()
+func (db *Database) Close() (error) {
+    return db.connection.Close()
 }
 func (db *Database) bannedLoadBannedTokens(
-    tokenSubset map[string]bool,
-) ([]BannedToken, error) {
+    tokenSubset []string,
+) ([]bannedToken, error) {
     query := `SELECT
         banned.caseInsensitiveRepresentation,
         dict.id
@@ -89,27 +104,24 @@ func (db *Database) bannedLoadBannedTokens(
         banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
     `
     
-    args := make([]string, len(tokenSubset))
-    if len(args) > 0 {
-        array_params := make([]string, len(args))
-        for i, arg := args {
-            args[i] = arg
-            array_params[i] = fmt.Sprintf("?{}", i + 1)
-        }
+    if len(tokenSubset) > 0 {
         query += fmt.Sprintf(
-            "WHERE banned.caseInsensitiveRepresentation IN ({})",
-            strings.Join(array_parms, ","),
+            "WHERE banned.caseInsensitiveRepresentation IN (%s)",
+            prepareSqliteArrayParams(1, len(tokenSubset)),
         )
     }
-    if rows, err := db.connection.Query(query, args...); err == nil {
+    if rows, err := db.connection.Query(
+        query,
+        stringSliceToInterfaceSlice(tokenSubset)...,
+    ); err == nil {
         defer rows.Close()
         
-        output := make([]BannedToken, 0)
+        output := make([]bannedToken, 0)
         for rows.Next() {
             var cir string
             var did int
             if err:= rows.Scan(&cir, &did); err != nil {
-                output = append(output, BannedToken{
+                output = append(output, bannedToken{
                     caseInsensitiveRepresentation: cir,
                     dictionaryId: did,
                 })
@@ -122,52 +134,51 @@ func (db *Database) bannedLoadBannedTokens(
         return nil, err
     }
 }
-
-
-
-
-
-
-
-
-
-impl Database {
-
-    pub fn banned_ban_tokens(&mut self,
-        tokens:&HashSet<&str>,
-    ) -> Result<Vec<banned_dictionary::BannedToken>, Box<Error>> {
-        let tx = self.connection.transaction()?;
-        {
-            let mut insert_stmt = tx.prepare("INSERT INTO
-                dictionary_banned(caseInsensitiveRepresentation)
-            VALUES (?1)
-            ON CONFLICT DO NOTHING
-            ")?;
-            for token in tokens {
-                insert_stmt.execute(&[token])?;
+func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return nil, err
+    }
+    
+    const query = `INSERT INTO
+        dictionary_banned(caseInsensitiveRepresentation)
+    VALUES (?1)
+    ON CONFLICT DO NOTHING
+    `
+    if stmt, err := tx.Prepare(query); err == nil {
+        for _, token := range tokens {
+            if _, err = stmt.Exec(token); err != nil {
+                break
             }
         }
-        tx.commit()?;
-
-        return self.banned_load_banned_tokens(Some(tokens));
+        stmt.Close()
     }
-    pub fn banned_unban_tokens(&self,
-        tokens:&HashSet<&str>,
-    ) -> Result<(), Box<Error>> {
-        let mut array_parms = Vec::with_capacity(tokens.len());
-        for idx in 0..tokens.len() {
-            array_parms.push(format!("?{}", idx + 1));
-        }
-
-        self.connection.execute(format!("DELETE
-        FROM
-            dictionary_banned
-        WHERE
-            caseInsensitiveRepresentation IN ({})
-        ", array_parms.join(",")).as_str(), tokens)?;
-        return Ok(());
+    if err != nil {
+        tx.Rollback()
+        return nil, err
     }
+    if err = tx.Commit(); err != nil {
+        return nil, err
+    }
+    return db.bannedLoadBannedTokens(tokens);
+}
+func (db *Database) bannedUnbanTokens(tokens []string) (error) {
+    query := fmt.Sprintf(`DELETE
+    FROM
+        dictionary_banned
+    WHERE caseInsensitiveRepresentation IN (%s)
+    `, prepareSqliteArrayParams(1, len(tokens)))
+    
+    _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(tokens)...)
+    return err
+}
 
+
+
+
+
+/*
+impl Database {
 
     pub fn dictionary_enumerate_tokens_by_substring(&self,
         substrings:&HashSet<&str>,
@@ -416,7 +427,7 @@ impl Database {
         return Ok(());
     }
 }
-
+*/
 
 
 
@@ -433,11 +444,11 @@ impl Database {
 
 
 type DatabaseManager struct {
-    dbDir: string,
+    dbDir string
     
-    databases: map[string]*Database,
+    databases map[string]*Database
 }
-func PrepareDatabaseManager(dbDir string) (*DatabaseManager) {
+func prepareDatabaseManager(dbDir string) (*DatabaseManager) {
     return &DatabaseManager{
         dbDir: dbDir,
         
@@ -452,26 +463,31 @@ func (dbm *DatabaseManager) Close() {
     dbm.databases = make(map[string]*Database)
 }
 func (dbm *DatabaseManager) idToPath(contextId string) (string) {
-    return filepath.Join(dbm.dbDir, contextId + '.sqlite3')
+    return filepath.Join(dbm.dbDir, contextId + ".sqlite3")
 }
-func (dbm *DatabaseManager) Create(contextId string) {
+func (dbm *DatabaseManager) Create(contextId string) (error) {
     logger.Infof("creating database {}...", contextId)
-    prepareDatabase(dbm.idToPath(contextId))
+    if db, err := prepareDatabase(dbm.idToPath(contextId)); err == nil {
+        return db.Close()
+    } else {
+        return err
+    }
 }
-func (dbm *DatabaseManager) Drop(contextId string) {
+func (dbm *DatabaseManager) Drop(contextId string) (error) {
     logger.Infof("dropping database {}...", contextId)
     if database, defined := dbm.databases[contextId]; defined {
-        database.Close()
+        if err := database.Close(); err != nil {
+            //it'll be referenced anyway, so this isn't critical
+            logger.Warningf("unable to close database %s: %s", contextId, err)
+        }
         delete(dbm.databases, contextId)
     }
-    if err := os.Remove(dbm.idToPath(contextId)); err != nil {
-        logger.Warnf("unable to unlink database {}: {}", contextId, e)
-    }
+    return os.Remove(dbm.idToPath(contextId))
 }
 func (dbm *DatabaseManager) Load(contextId string) (*Database, error) {
     logger.Infof("loading database {}...", contextId)
     dbPath := dbm.idToPath(contextId)
-    if _, err := os.Stat(dbPath); err {
+    if _, err := os.Stat(dbPath); err != nil {
         return nil, err
     }
     return prepareDatabase(dbPath)
