@@ -12,6 +12,7 @@ tyuo/
         <id>.language
     languages/
         <language>.banned
+        <language>.nonkey
 */
 
 func Test(contextDir string) () {

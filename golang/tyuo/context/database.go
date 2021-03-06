@@ -9,7 +9,7 @@ import (
     _ "github.com/mattn/go-sqlite3"
 )
 
-func prepareSqliteArrayParams(start int, count int) (string) {
+func prepareSqliteArrayParams(start int32, count int32) (string) {
     arrayParams := make([]string, count)
     for i := 0; i < count; i++ {
         arrayParams[i] = fmt.Sprintf("?%d", start + i)
@@ -52,35 +52,85 @@ func prepareDatabase(
         connection.Close()
         return nil, err
     }
-    //for the next two, the JSON structure will never be empty, since there
+    
+    //for n-grams, the JSON structure will never be empty, since there
     //has to be at least one transition for a write to occur
-    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS statistics_forward (
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS terminals (
         dictionaryId INTEGER NOT NULL PRIMARY KEY,
-        childrenJSONZLIB BLOB NOT NULL,
+        lastObservedForward INTEGER, --UNIX timestamp
+        lastObservedReverse INTEGER, --UNIX timestamp
 
-        FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
+        FOREIGN KEY(dictionaryId)
+        REFERENCES dictionary(id)
+        ON DELETE CASCADE
     )`); err != nil {
         connection.Close()
         return nil, err
     }
-    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS statistics_reverse (
-        dictionaryId INTEGER NOT NULL PRIMARY KEY,
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS trigrams_forward (
+        dictionaryIdFirst INTEGER NOT NULL,
+        dictionaryIdSecond INTEGER NOT NULL,
         childrenJSONZLIB BLOB NOT NULL,
 
-        FOREIGN KEY(dictionaryId) REFERENCES dictionary(id) ON DELETE CASCADE
+        PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond),
+        FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond)
+        REFERENCES dictionary(id, id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS trigrams_reverse (
+        dictionaryIdFirst INTEGER NOT NULL,
+        dictionaryIdSecond INTEGER NOT NULL,
+        childrenJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond),
+        FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond)
+        REFERENCES dictionary(id, id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS quadgrams_forward (
+        dictionaryIdFirst INTEGER NOT NULL,
+        dictionaryIdSecond INTEGER NOT NULL,
+        dictionaryIdThird INTEGER NOT NULL,
+        childrenJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird),
+        FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird)
+        REFERENCES dictionary(id, id, id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS quadgrams_reverse (
+        dictionaryIdFirst INTEGER NOT NULL,
+        dictionaryIdSecond INTEGER NOT NULL,
+        dictionaryIdThird INTEGER NOT NULL,
+        childrenJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird),
+        FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird)
+        REFERENCES dictionary(id, id, id)
+        ON DELETE CASCADE
     )`); err != nil {
         connection.Close()
         return nil, err
     }
     
     logger.Debugf("preparing database pragma...");
-    //ensure foreign keys are checked
-    if _, err = connection.Exec("PRAGMA foreign_keys=on"); err != nil {
+    //while foreign keys are declared in the structure, because tokens are never
+    //removed from the database, their enforcement is unnecessary
+    if _, err = connection.Exec("PRAGMA foreign_keys = OFF"); err != nil {
         connection.Close()
         return nil, err
     }
-    //since only lower-case matches occur, let comparisons be optimal
-    if _, err = connection.Exec("PRAGMA case_sensitive_like=true"); err != nil {
+    //since only lower-case matches occur, make comparisons more efficient
+    if _, err = connection.Exec("PRAGMA case_sensitive_like = TRUE"); err != nil {
         connection.Close()
         return nil, err
     }
@@ -119,7 +169,7 @@ func (db *Database) bannedLoadBannedTokens(
         output := make([]bannedToken, 0)
         for rows.Next() {
             var cir string
-            var did int
+            var did int32
             if err:= rows.Scan(&cir, &did); err != nil {
                 output = append(output, bannedToken{
                     caseInsensitiveRepresentation: cir,
@@ -279,25 +329,6 @@ impl Database {
         }
         return Ok(results);
     }
-    pub fn dictionary_get_random_tokens(&self,
-        count:u8,
-    ) -> Result<Vec<(String, i32)>, Box<Error>> {
-        let mut stmt = self.connection.prepare(format!("SELECT
-            caseInsensitiveRepresentation,
-            id
-        FROM
-            dictionary
-        ORDER BY RANDOM()
-        LIMIT {}
-        ", count).as_str())?;
-
-        let mut results = Vec::with_capacity(count.into());
-        let mut rows = stmt.query(params![])?;
-        while let Some(row) = rows.next()? {
-            results.push((row.get(0)?, row.get(1)?));
-        }
-        return Ok(results);
-    }
     pub fn dictionary_set_tokens(&mut self,
         tokens:HashSet<dictionary::DictionaryToken>,
     ) -> Result<(), Box<Error>> {
@@ -429,7 +460,25 @@ impl Database {
 }
 */
 
+//NOTE: terminal, trigam, and quadgram logic is needed instead of the
+//current digram-only
+//when looking up trigrams, input is a tuple; for quadgrams, it's a triple
+//trigrams and quadgrams also need "Only1" variants for their
+//lookups, which allows wildcard logic when selecting from the database
+//(only match on the first column), used to start a search from the
+//initial keyword state
+//all of the n-gram lookups should use a combination of
+//ORDER BY RANDOM() and LIMIT X
 
+//terminal lookup's response is a pair of bools, indicating whether it is
+//recognised as a forward or reverse terminal
+
+//there also needs to be a function to select a few reverse-terminals for
+//use as a starting point for beginning a random walk as a fallback
+//for production flows.
+
+//multiple requests can be made at once (using a prepared statement approach);
+//the values returned will be in the same order as they were received
 
 
 
