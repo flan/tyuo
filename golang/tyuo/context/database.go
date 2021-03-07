@@ -761,7 +761,11 @@ impl Database {
 //newly initialised structures where not found
 
 
-
+//maybe it should also implement digrams and quitagrams, with each flavour being
+//configurable on a per-context basis;
+//when processing, it will always start from the most specific form and fall
+//back from there;
+//it also won't learn anything in a model that's disabled
 
 
 
