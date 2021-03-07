@@ -1,15 +1,16 @@
 package context
 
-//TODO: this should be a flag
+//TODO: this should be part of context
 const caseSensitiveRepresentationThreshold float64 = 0.1
 
 type dictionaryToken struct {
     id int
     caseInsensitiveOccurrences int
     caseInsensitiveRepresentation string
-    capitalisedForms map[string]float64
+    capitalisedForms map[string]int
 }
 //has a function to return the most appropriate representation
+    //this function takes the representation threshold as an argument
 
 type ParsedToken struct {
     CaseSensitive string

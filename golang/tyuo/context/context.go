@@ -1,4 +1,7 @@
 package context
+import (
+    "time"
+)
 
 //context-manager holds a bunch of contexts, keyed by ID
 //each context has a database file and a language-specifying file as artifacts
@@ -11,11 +14,27 @@ tyuo/
         <id>.sqlite3
         <id>.json {
             "language": "en",
-            "n-grams": {
+            "nGrams": {
                 "digrams": false,
                 "trigrams": true,
                 "quadgrams": true,
                 "quintgrams": true,
+            },
+            "learning": {
+                "minLength": 5, //if learnable input is at least this long, update the dictionary and feed it into any n-grams where it fits
+                "maxAge": <a year, in seconds>,
+            },
+            "production": {
+                "minLength": 4,
+                "maxLength": 30, //just abort the production search at this point
+                "stopProbability": 0.25, //applies after min until reaching the target range
+                "targetLength": {
+                    "min": 10,
+                    "max": 20,
+                    "stopProbability": 0.5, //applies until production ends
+                    //for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
+                },
+                "caseSensitivityThreshold": 0.1,
             },
         }
     languages/
@@ -78,6 +97,11 @@ func (c *Context) QuintgramsEnabled() (bool) {
 //there also needs to be a Lock and Unlock function; these are what
 //allow the TCP service to not care how many requests it serves
 //and to control simultaneous access to the database
+
+func(c *Context) getOldestAllowedTime() (int64) {
+    return time.Now().Unix() - *maxNgramAge
+}
+
 
 type ContextManager struct {
     contexts map[string]Context

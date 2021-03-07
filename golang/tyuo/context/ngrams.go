@@ -34,13 +34,21 @@ func (t *Terminal) GetDictionaryId() (int) {
     return t.dictionaryId
 }
 
+
 type transitionSpec struct {
-    dictionaryId int
     occurrences int
-    lastObserved int
+    lastObserved int64
 }
-type transitions struct {
+type Transitions struct {
     transitions map[int]transitionSpec
+}
+func prepareTransitions(transitions map[int]transitionSpec) (Transitions) {
+    return Transitions{
+        transitions: transitions,
+    }
+}
+func prepareTransitionsEmpty() (Transitions) {
+    return prepareTransitions(make(map[int]transitionSpec, 1))
 }
 //public function to increment/define transitions
 
@@ -48,36 +56,46 @@ type DigramSpec struct {
     DictionaryIdFirst int
 }
 type Digram struct {
-    transitions
-    DigramSpec
+    Transitions
+    
+    dictionaryIdFirst int
 }
 
 type TrigramSpec struct {
-    DigramSpec
-    
+    DictionaryIdFirst int
     DictionaryIdSecond int
 }
 type Trigram struct {
-    transitions
-    TrigramSpec
+    Transitions
+    
+    dictionaryIdFirst int
+    dictionaryIdSecond int
 }
 
 type QuadgramSpec struct {
-    TrigramSpec
-    
+    DictionaryIdFirst int
+    DictionaryIdSecond int
     DictionaryIdThird int
 }
 type Quadgram struct {
-    transitions
-    QuadgramSpec
+    Transitions
+    
+    dictionaryIdFirst int
+    dictionaryIdSecond int
+    dictionaryIdThird int
 }
 
 type QuintgramSpec struct {
-    QuadgramSpec
-    
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+    DictionaryIdThird int
     DictionaryIdFourth int
 }
 type Quintgram struct {
-    transitions
-    QuintgramSpec
+    Transitions
+    
+    dictionaryIdFirst int
+    dictionaryIdSecond int
+    dictionaryIdThird int
+    dictionaryIdFourth int
 }

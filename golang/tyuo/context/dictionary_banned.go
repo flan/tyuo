@@ -29,6 +29,7 @@ func processBannedTokens(listPath string) ([]string, error) {
     if err := scanner.Err(); err != nil {
         return nil, err
     }
+    logger.Debugf("loaded {} language-level banned tokens", len(output))
     return output, nil
 }
 
@@ -42,6 +43,7 @@ type bannedDictionary struct {
     
     //tokens from the list
     bannedTokensGeneric []string
+    bannedIdsGeneric map[int]void
 }
 func prepareBannedDictionary(
     database *Database,
@@ -49,7 +51,6 @@ func prepareBannedDictionary(
 ) (*bannedDictionary, error) {
     bannedTokens := make([]bannedToken, 0)
     bannedIds := make(map[int]void)
-    
     if bts, err := database.bannedLoadBannedTokens(nil); err == nil {
         for _, bt := range bts {
             bannedTokens = append(bannedTokens, bt)
@@ -60,6 +61,20 @@ func prepareBannedDictionary(
     } else {
         return nil, err
     }
+    logger.Debugf("loaded {} banned tokens", len(bannedTokens))
+    logger.Debugf("loaded {} banned IDs", len(bannedIds))
+    
+    //enumerate the IDs of anything in the dictionary that predated additions to the language-level ban-list
+    bannedIdsGeneric := make(map[int]void)
+    if bvs, err := database.dictionaryEnumerateTokensBySubstring(bannedTokensGeneric); err == nil {
+        for _, bannedId := range bvs {
+            bannedIdsGeneric[bannedId] = voidInstance
+        }
+    } else {
+        return nil, err
+    }
+    logger.Debugf("identified {} IDs mapped to banned language-level tokens", len(bannedIdsGeneric))
+    
     return &bannedDictionary{
         database: database,
         
@@ -67,6 +82,7 @@ func prepareBannedDictionary(
         bannedIds: bannedIds,
         
         bannedTokensGeneric: bannedTokensGeneric,
+        bannedIdsGeneric: bannedIdsGeneric,
     }, nil
 }
 func (bd *bannedDictionary) ban(tokens map[string]bool) (error) {
@@ -136,19 +152,16 @@ func (bd *bannedDictionary) unban(tokens map[string]bool) (error) {
     
     return nil
 }
-func (bd *bannedDictionary) isBannedByToken(tokens map[string]bool) (bool) {
-    for _, bt := range bd.bannedTokens {
-        for token := range tokens {
-            if strings.Contains(token, bt.caseInsensitiveRepresentation) {
-                return true;
-            }
+func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
+    lcaseS := strings.ToLower(s)
+    for _, bt := range bd.bannedTokensGeneric {
+        if strings.Contains(lcaseS, bt) {
+            return true;
         }
     }
-    for _, bt := range bd.bannedTokensGeneric {
-        for token := range tokens {
-            if strings.Contains(token, bt) {
-                return true;
-            }
+    for _, bt := range bd.bannedTokens {
+        if strings.Contains(lcaseS, bt.caseInsensitiveRepresentation) {
+            return true;
         }
     }
     return false;
@@ -156,6 +169,9 @@ func (bd *bannedDictionary) isBannedByToken(tokens map[string]bool) (bool) {
 func (bd *bannedDictionary) isBannedById(ids map[int]bool) (bool) {
     for id := range ids {
         if _, defined := bd.bannedIds[id]; defined {
+            return true;
+        }
+        if _, defined := bd.bannedIdsGeneric[id]; defined {
             return true;
         }
     }

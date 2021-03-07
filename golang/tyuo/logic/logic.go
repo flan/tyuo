@@ -1,19 +1,19 @@
-//Ban-checking should probably do a global lcase-check against all banned tokens,
-//rather than tokenising first, since 100 strstrs is probably cheaper than
-//700 + related copying, even if it's over a longer input
-
-//Also, before returning the list of candidates to the caller, run them through
-//another ban-pass and eliminate anything that fails the check
-//This is an unfortunate necessity of having a language-level ban-list:
-//something offensive could have made its way into the dictionary before that
-//applied, then not been explicitly banned  within the context
-//...or maybe, on-load, do a substring match of all language-level banned
-//tokens and ban any resulting IDs in the runtime memory
-//That would probably be much more performant.
-
 //when generating paths from the top level, run each searchBranch in its
 //own goroutine, so there should be ten in the base case, all doing reads
 //on the database; this should be fine, since only one request can be served
 //by each context at any time and creation and learning are separate flows --
 //creation is strictly read-only
+
+
+//scoring logic:
+//All productions start with a score of 0
+//each test adds or removes points (typically 1 or 2) depending on how well the production
+//satisfies its requirements:
+//each primary keyword is worth one point; each secondary worth one
+//failing to meet a minimum target length will deduct a point
+//  slightly exceeding the target will award one, but greatly exceeding it will award nothing
+//a point will be deducted for every repetition of the same token above two counts
+
+//any production with a positive score is a response candidate and will be formatted
+//productions are grouped by score and returned is descending order
 

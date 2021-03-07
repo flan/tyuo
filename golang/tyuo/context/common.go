@@ -18,6 +18,7 @@ const undefinedDictionaryId = -2147483648 //int32 minimum; should constrain data
 const rescaleThreshold = 1000
 const rescaleDecimator = 3
 
+//TODO: this should be part of the context
 var maxNgramAge = flag.Int64("max-ngram-age", 3600 * 24 * 365, "the number of seconds for which to remember an n-gram value")
 
 var rng = rand.New(rand.NewSource(time.Now().Unix()))

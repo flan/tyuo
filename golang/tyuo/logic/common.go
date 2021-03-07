@@ -35,7 +35,7 @@ const sentenceBoundary = -2147483648 //int32 minimum; should constrain database 
 //when doing a markov walk, choose anything in the keyword set first, if possible
 
 //TODO: these should be flag-parameters... or part of the context-struct
-const searchBranches = 5
+const searchBranches = 5 //maybe make this smaller, like 3, and give the initial search-path a value like 20
 //probability of stopping after each node, upon encountering a terminal
 const searchMinDepth = 2
 const searchMaxDepth = 30

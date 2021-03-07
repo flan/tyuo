@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "flag"
     "fmt"
+    "github.com/4kills/go-zlib"
     "os"
     "path/filepath"
     "strings"
@@ -13,10 +14,6 @@ import (
 )
 
 var dbDebug = flag.Bool("db-debug", false, "whether to use database debugging features; should usually be false")
-
-func getOldestAllowedTime() (int64) {
-    return time.Now().Unix() - *maxNgramAge
-}
 
 func prepareSqliteArrayParams(start int, count int) (string) {
     arrayParams := make([]string, count)
@@ -245,22 +242,14 @@ func (db *Database) Close() (error) {
 
 func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]int) {
     if data.Valid {
-        var buffer map[string]interface{} = nil
+        var buffer map[string]int = nil
         if err := json.Unmarshal([]byte(data.String), &buffer); err == nil {
-            deserialised := make(map[string]int, len(buffer))
-            for k, v := range buffer {
-                if deserialisedV, okay := v.(float64); okay {
-                    deserialised[k] = int(deserialisedV)
-                } else { //some sort of database corruption, almost certainly due to misuse
-                    logger.Warningf("unable to infer count for %s in capitalisedFormsJSON; reinitialising state: %s", k, err)
-                }
-            }
-            return deserialised
+            return buffer
         } else { //some sort of database corruption, almost certainly due to misuse
             logger.Warningf("unable to deserialise capitalisedFormsJSON; reinitialising state: %s", err)
         }
     }
-    return make(map[string]int, 0)
+    return make(map[string]int)
 }
 func serialiseCapitalisedFormsJSON(data map[string]int) (interface{}) {
     if len(data) == 0 {
@@ -274,7 +263,7 @@ func serialiseCapitalisedFormsJSON(data map[string]int) (interface{}) {
         return nil
     }
 }
-func (db *Database) dictionaryEnumerateTokensBySubstring(tokens map[string]bool) (map[string]int, error) {
+func (db *Database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
     if stmt, err := db.connection.Prepare(`
     SELECT
         caseInsensitiveRepresentation,
@@ -287,7 +276,7 @@ func (db *Database) dictionaryEnumerateTokensBySubstring(tokens map[string]bool)
         defer stmt.Close()
         
         output := make(map[string]int)
-        for token := range tokens {
+        for _, token := range tokens {
             if rows, err := stmt.Query(fmt.Sprintf("%%%s%%", token)); err == nil {
                 defer rows.Close()
                 for rows.Next() {
@@ -539,7 +528,7 @@ func (db *Database) bannedUnbanTokens(tokens []string) (error) {
 
 
 
-func (db *Database) terminalsGetTerminals(ids map[int]bool) (map[int]Terminal, error) {
+func (db *Database) terminalsGetTerminals(ids map[int]bool, oldestAllowedTime int64) (map[int]Terminal, error) {
     if len(ids) == 0 {
         return make(map[int]Terminal, 0), nil
     }
@@ -548,8 +537,6 @@ func (db *Database) terminalsGetTerminals(ids map[int]bool) (map[int]Terminal, e
     for id := range ids {
         remainingIds[id] = false
     }
-    
-    oldestAllowedTime := getOldestAllowedTime()
     
     query := fmt.Sprintf(`
     SELECT
@@ -618,7 +605,7 @@ func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
         lastObservedForward,
         lastObservedReverse
     ) VALUES (?1, ?2, NULL)
-    ON CONFLICT(id) DO UPDATE SET
+    ON CONFLICT(dictionaryId) DO UPDATE SET
         lastObservedForward = ?3
     `); err == nil {
         if stmtReverse, err := tx.Prepare(`
@@ -627,7 +614,7 @@ func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
             lastObservedForward,
             lastObservedReverse
         ) VALUES (?1, NULL, ?2)
-        ON CONFLICT(id) DO UPDATE SET
+        ON CONFLICT(dictionaryId) DO UPDATE SET
             lastObservedReverse = ?3
         `); err == nil {
             for _, terminal := range terminals {
@@ -669,9 +656,9 @@ func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
     }
     return tx.Commit()
 }
-//this provides starting-point candidates for doing a forward or reverse
+//this provides starting-point candidates for doing a forward- or reverse-
 //random-walk, in the event that a keyword-oriented walk fails.
-func (db *Database) terminalsGetStarters(count int, forward bool) ([]int, error) {
+func (db *Database) terminalsGetStarters(count int, forward bool, oldestAllowedTime int64) ([]int, error) {
     if count <= 0 {
         return make([]int, 0), nil
     }
@@ -694,7 +681,7 @@ func (db *Database) terminalsGetStarters(count int, forward bool) ([]int, error)
     
     if rows, err := db.connection.Query(
         query,
-        getOldestAllowedTime(),
+        oldestAllowedTime,
     ); err == nil {
         defer rows.Close()
         
@@ -716,116 +703,229 @@ func (db *Database) terminalsGetStarters(count int, forward bool) ([]int, error)
 
 
 
+func deserialiseTransitionsJSONZLIB(data []byte, oldestAllowedTime int64) (map[int]transitionSpec) {
+    reader, err := zlib.NewReader(nil)
+    if err != nil {
+        panic(err) //inconsistency in zlib library between reader and writer;
+                   //make them do the same thing
+                   //(if this fails, the environment is unusable)
+    }
+    defer reader.Close()
+    _, decompressed, err := reader.ReadBuffer(data, nil)
+    if err != nil {
+        logger.Warningf("unable to decompress zlib data; reinitialising state: %s", err)
+        return make(map[int]transitionSpec, 1)
+    }
+    
+    var buffer [][3]int = nil
+    if err := json.Unmarshal([]byte(decompressed), &buffer); err == nil {
+        output := make(map[int]transitionSpec, len(buffer) + 1)
+        for _, tspec := range buffer {
+            lastObserved := int64(tspec[2])
+            if lastObserved > oldestAllowedTime {
+                output[tspec[0]] = transitionSpec{
+                    occurrences: tspec[1],
+                    lastObserved: lastObserved,
+                }
+            }
+        }
+        return output
+    } else { //some sort of database corruption, almost certainly due to misuse
+        logger.Warningf("unable to deserialise transitions; reinitialising state: %s", err)
+    }
+    return make(map[int]transitionSpec, 1)
+}
+func serialiseTransitionsJSONZLIB(specs map[int]transitionSpec) ([]byte) {
+    destructuredData := make([][3]int, 0, len(specs))
+    for did, tspec := range specs {
+        destructuredData = append(destructuredData, [3]int{did, tspec.occurrences, int(tspec.lastObserved)})
+    }
+    
+    if buffer, err := json.Marshal(destructuredData); err == nil {
+        writer := zlib.NewWriter(nil)
+        defer writer.Close()
+        if compressed, err := writer.WriteBuffer(buffer, nil); err == nil {
+            return compressed
+        } else {
+            logger.Warningf("unable to compress transitions; reinitialising state: %s", err)
+        }
+    } else {
+        logger.Warningf("unable to serialise transitions; reinitialising state: %s", err)
+    }
+    return []byte{120, 156, 139, 142, 5, 0, 1, 21, 0, 185} //zlib-compressed empty JSON array
+}
 
+func ngramsGetDirectionString(forward bool) (string) {
+    if forward {
+        return "forward"
+    }
+    return "reverse"
+}
+
+func (db *Database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAllowedTime int64) (map[DigramSpec]Digram, error) {
+    if len(specs) == 0 {
+        return make(map[DigramSpec]Digram, 0), nil
+    }
+    
+    if stmt, err := db.connection.Prepare(fmt.Sprintf(`
+    SELECT
+        transitionsJSONZLIB
+    FROM
+        digrams_{}
+    WHERE
+        dictionaryIdFirst = ?1
+    LIMIT 1
+    `, ngramsGetDirectionString(forward))); err == nil {
+        defer stmt.Close()
+        
+        output := make(map[DigramSpec]Digram, len(specs))
+        for spec := range specs {
+            var transitionsJSONZLIB []byte
+            row := stmt.QueryRow(spec.DictionaryIdFirst)
+            if err := row.Scan(&transitionsJSONZLIB); err == nil {
+                output[spec] = Digram{
+                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    
+                    dictionaryIdFirst: spec.DictionaryIdFirst,
+                }
+            } else if err != sql.ErrNoRows {
+                return nil, err
+            } else {
+                output[spec] = Digram{
+                    Transitions: prepareTransitionsEmpty(),
+                    
+                    dictionaryIdFirst: spec.DictionaryIdFirst,
+                }
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) digramsSet(digrams []Digram, forward bool) (error) {
+    if len(digrams) == 0 {
+        return nil
+    }
+    
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return err
+    }
+    
+    if stmt, err := tx.Prepare(fmt.Sprintf(`
+    INSERT INTO digrams_%s(
+        dictionaryIdFirst,
+        transitionsJSONZLIB
+    ) VALUES (?1, ?2)
+    ON CONFLICT(dictionaryIdFirst) DO UPDATE SET
+        transitionsJSONZLIB = ?3
+    `, ngramsGetDirectionString(forward))); err == nil {
+        for _, digram := range digrams {
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(digram.Transitions.transitions)
+            if _, err = stmt.Exec(
+                digram.dictionaryIdFirst,
+                transitionsJSONZLIB,
+                transitionsJSONZLIB,
+            ); err != nil {
+                if e := stmt.Close(); e != nil {
+                    logger.Warningf("unable to close statement: %s", e)
+                }
+                if e := tx.Rollback(); e != nil {
+                    logger.Warningf("unable to roll-back transaction: %s", e)
+                }
+                return err
+            }
+        }
+        stmt.Close()
+    } else {
+        if e := tx.Rollback(); e != nil {
+            logger.Warningf("unable to roll-back transaction: %s", e)
+        }
+        return err
+    }
+    return tx.Commit()
+}
+
+
+func (db *Database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Trigram, error) {
+    if rows, err := db.connection.Query(fmt.Sprintf(`
+    SELECT
+        dictionaryIdSecond,
+        transitionsJSONZLIB
+    FROM
+        trigrams_{}
+    WHERE
+        dictionaryIdFirst = ?1
+    ORDER BY RANDOM()
+    LIMIT %d
+    `, ngramsGetDirectionString(forward), count)); err == nil {
+        defer rows.Close()
+        
+        output := make([]Trigram, 0, count)
+        for rows.Next() {
+            var dictionaryIdSecond int
+            var transitionsJSONZLIB []byte
+            if err:= rows.Scan(&dictionaryIdSecond, &transitionsJSONZLIB); err == nil {
+                output = append(output, Trigram{
+                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    
+                    dictionaryIdFirst: dictionaryIdFirst,
+                    dictionaryIdSecond: dictionaryIdSecond,
+                })
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
 
 /*
-impl Database {
-    pub fn model_get_transitions(&self,
-        direction:&str,
-        ids:HashSet<&i32>,
-    ) -> Result<fnv::FnvHashMap<i32, fnv::FnvHashMap<i32, model::Transition>>, Box<Error>> {
-        let mut array_parms = Vec::with_capacity(ids.len());
-        for idx in 0..ids.len() {
-            array_parms.push(format!("?{}", idx + 1));
-        }
+type TrigramSpec struct {
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+}
+type Trigram struct {
+    transitions
+    
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+}
 
-        let mut stmt = self.connection.prepare(format!("SELECT
-            dictionaryId,
-            transitionsJSONZLIB
-        FROM
-            statistics_{}
-        WHERE
-            dictionaryId IN ({})
-        ", direction, array_parms.join(",")).as_str())?;
+type QuadgramSpec struct {
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+    DictionaryIdThird int
+}
+type Quadgram struct {
+    transitions
+    
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+    DictionaryIdThird int
+}
 
-        let mut results = fnv::FnvHashMap::default();
-        let mut rows = stmt.query(ids)?;
-        while let Some(row) = rows.next()? {
-            let id:i32 = row.get(0)?;
-            
-            let blob:Vec<u8> = row.get(1)?;
-            let mut decoder = flate2::read::ZlibDecoder::new(blob.as_slice());
-            let mut decoded = String::new();
-            decoder.read_to_string(&mut decoded)?;
-            
-            let mut transitions = fnv::FnvHashMap::default();
-            let vec:Vec<serde_json::Value> = serde_json::from_str(decoded.as_str())?;
-            for transition in vec {
-                let dictionary_id:i32 = transition[0].as_i64().unwrap() as i32;
-                let occurrences:i32 = transition[1].as_i64().unwrap() as i32;
-                let last_observed:i64 = transition[1].as_i64().unwrap();
-                
-                transitions.insert(dictionary_id, model::Transition::new(
-                    occurrences,
-                    last_observed,
-                ));
-            }
-            
-            results.insert(id, transitions);
-        }
-        return Ok(results);
-    }
-    pub fn model_set_transitions(&mut self,
-        direction:&str,
-        nodes:Vec<(&i32, HashMap<&i32, model::Transition>)>,
-    ) -> Result<(), Box<Error>> {
-        let tx = self.connection.transaction()?;
-        {
-            let mut stmt = tx.prepare(format!("INSERT INTO statistics_{}(
-                dictionaryId,
-                transitionsJSONZLIB
-            ) VALUES (:id, :cjz)
-            ON CONFLICT(dictionaryId) DO UPDATE SET
-                transitionsJSONZLIB = :cjz
-            ", direction).as_str())?;
-            for node in nodes {
-                let mut transitions:Vec<(i32, i32, i64)> = Vec::with_capacity(node.1.len());
-                
-                for (transition_dictionary_id, transition) in node.1 {
-                    transitions.push((
-                        transition_dictionary_id.to_owned(),
-                        transition.get_occurrences().to_owned(),
-                        transition.get_last_observed().to_owned(),
-                    ));
-                }
-                let json_data = serde_json::json!(transitions);
-                let serialisable_data = &serde_json::to_vec(&json_data)?;
-                
-                let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
-                encoder.write_all(serialisable_data);
-                
-                stmt.execute_named(named_params!{
-                    ":id": node.0,
-                    ":cjz": encoder.finish()?,
-                })?;
-            }
-        }
-        tx.commit()?;
-        return Ok(());
-    }
+type QuintgramSpec struct {
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+    DictionaryIdThird int
+    DictionaryIdFourth int
+}
+type Quintgram struct {
+    transitions
+    
+    DictionaryIdFirst int
+    DictionaryIdSecond int
+    DictionaryIdThird int
+    DictionaryIdFourth int
 }
 */
 
-//NOTE: terminal, trigam, and quadgram logic is needed instead of the
-//current digram-only
-//when looking up trigrams, input is a tuple; for quadgrams, it's a triple
-//trigrams and quadgrams also need "Only1" variants for their
-//lookups, which allows wildcard logic when selecting from the database
-//(only match on the first column), used to start a search from the
-//initial keyword state
-//all of the Only1 n-gram lookups should use a combination of
-//ORDER BY RANDOM() and LIMIT X
-
-//multiple requests can be made at once (using a prepared statement approach);
-//the values returned will be a map, keyed by the lookup parameter, with
-//newly initialised structures where not found
 
 
-//maybe it should also implement digrams and quitagrams, with each flavour being
-//configurable on a per-context basis;
-//when processing, it will always start from the most specific form and fall
-//back from there;
-//it also won't learn anything in a model that's disabled
 
 
 
