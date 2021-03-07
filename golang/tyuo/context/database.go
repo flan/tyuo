@@ -753,12 +753,8 @@ impl Database {
 //lookups, which allows wildcard logic when selecting from the database
 //(only match on the first column), used to start a search from the
 //initial keyword state
-//all of the n-gram lookups should use a combination of
+//all of the Only1 n-gram lookups should use a combination of
 //ORDER BY RANDOM() and LIMIT X
-
-//terminal lookup's response is a pair of bools, indicating whether it is
-//recognised as a forward or reverse terminal
-
 
 //multiple requests can be made at once (using a prepared statement approach);
 //the values returned will be a map, keyed by the lookup parameter, with
