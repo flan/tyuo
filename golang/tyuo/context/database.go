@@ -68,6 +68,8 @@ func prepareDatabase(
     if err != nil {
         return nil, err
     }
+    //SQLite databases should only be opened once per process, so disable Go's pooling
+    connection.SetMaxOpenConns(1)
     
     logger.Debugf("preparing database structures...");
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS dictionary (
@@ -86,8 +88,6 @@ func prepareDatabase(
         return nil, err
     }
     
-    //for n-grams, the JSON structure will never be empty, since there
-    //has to be at least one transition for a write to occur
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS terminals (
         dictionaryId INTEGER NOT NULL PRIMARY KEY,
         lastObservedForward INTEGER, --UNIX timestamp
@@ -100,10 +100,38 @@ func prepareDatabase(
         connection.Close()
         return nil, err
     }
+    
+    //for n-grams, the JSON structure will never be empty, since there
+    //has to be at least one transition for a write to occur
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS digrams_forward (
+        dictionaryIdFirst INTEGER NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst),
+        FOREIGN KEY(dictionaryIdFirst)
+        REFERENCES dictionary(id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS digrams_reverse (
+        dictionaryIdFirst INTEGER NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst),
+        FOREIGN KEY(dictionaryIdFirst)
+        REFERENCES dictionary(id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS trigrams_forward (
         dictionaryIdFirst INTEGER NOT NULL,
         dictionaryIdSecond INTEGER NOT NULL,
-        childrenJSONZLIB BLOB NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
 
         PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond),
         FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond)
@@ -116,7 +144,7 @@ func prepareDatabase(
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS trigrams_reverse (
         dictionaryIdFirst INTEGER NOT NULL,
         dictionaryIdSecond INTEGER NOT NULL,
-        childrenJSONZLIB BLOB NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
 
         PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond),
         FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond)
@@ -126,11 +154,12 @@ func prepareDatabase(
         connection.Close()
         return nil, err
     }
+    
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS quadgrams_forward (
         dictionaryIdFirst INTEGER NOT NULL,
         dictionaryIdSecond INTEGER NOT NULL,
         dictionaryIdThird INTEGER NOT NULL,
-        childrenJSONZLIB BLOB NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
 
         PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird),
         FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird)
@@ -144,11 +173,42 @@ func prepareDatabase(
         dictionaryIdFirst INTEGER NOT NULL,
         dictionaryIdSecond INTEGER NOT NULL,
         dictionaryIdThird INTEGER NOT NULL,
-        childrenJSONZLIB BLOB NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
 
         PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird),
         FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird)
         REFERENCES dictionary(id, id, id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS quintgrams_forward (
+        dictionaryIdFirst INTEGER NOT NULL,
+        dictionaryIdSecond INTEGER NOT NULL,
+        dictionaryIdThird INTEGER NOT NULL,
+        dictionaryIdFourth INTEGER NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird, dictionaryIdFourth),
+        FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird, dictionaryIdFourth)
+        REFERENCES dictionary(id, id, id, id)
+        ON DELETE CASCADE
+    )`); err != nil {
+        connection.Close()
+        return nil, err
+    }
+    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS quintgrams_reverse (
+        dictionaryIdFirst INTEGER NOT NULL,
+        dictionaryIdSecond INTEGER NOT NULL,
+        dictionaryIdThird INTEGER NOT NULL,
+        dictionaryIdFourth INTEGER NOT NULL,
+        transitionsJSONZLIB BLOB NOT NULL,
+
+        PRIMARY KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird, dictionaryIdFourth),
+        FOREIGN KEY(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird, dictionaryIdFourth)
+        REFERENCES dictionary(id, id, id, id)
         ON DELETE CASCADE
     )`); err != nil {
         connection.Close()
@@ -183,14 +243,14 @@ func (db *Database) Close() (error) {
 
 
 
-func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]float64) {
+func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]int) {
     if data.Valid {
         var buffer map[string]interface{} = nil
         if err := json.Unmarshal([]byte(data.String), &buffer); err == nil {
-            deserialised := make(map[string]float64, len(buffer))
+            deserialised := make(map[string]int, len(buffer))
             for k, v := range buffer {
                 if deserialisedV, okay := v.(float64); okay {
-                    deserialised[k] = deserialisedV
+                    deserialised[k] = int(deserialisedV)
                 } else { //some sort of database corruption, almost certainly due to misuse
                     logger.Warningf("unable to infer count for %s in capitalisedFormsJSON; reinitialising state: %s", k, err)
                 }
@@ -200,9 +260,9 @@ func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]float64) 
             logger.Warningf("unable to deserialise capitalisedFormsJSON; reinitialising state: %s", err)
         }
     }
-    return make(map[string]float64, 0)
+    return make(map[string]int, 0)
 }
-func serialiseCapitalisedFormsJSON(data map[string]float64) (interface{}) {
+func serialiseCapitalisedFormsJSON(data map[string]int) (interface{}) {
     if len(data) == 0 {
         return nil
     }
@@ -479,9 +539,9 @@ func (db *Database) bannedUnbanTokens(tokens []string) (error) {
 
 
 
-func (db *Database) terminalsGetStatus(ids map[int]bool) (map[int]TerminalStatus, error) {
+func (db *Database) terminalsGetTerminals(ids map[int]bool) (map[int]Terminal, error) {
     if len(ids) == 0 {
-        return make(map[int]TerminalStatus, 0), nil
+        return make(map[int]Terminal, 0), nil
     }
     
     remainingIds := make(map[int]bool, len(ids))
@@ -508,12 +568,12 @@ func (db *Database) terminalsGetStatus(ids map[int]bool) (map[int]TerminalStatus
         intSetToInterfaceSlice(ids)...,
     ); err == nil {
         defer rows.Close()
-        results := make(map[int]TerminalStatus, len(ids))
+        results := make(map[int]Terminal, len(ids))
         for rows.Next() {
             var did int
             var lof, lor sql.NullInt64
             if err:= rows.Scan(&did, &lof, &lor); err == nil {
-                results[did] = TerminalStatus{
+                results[did] = Terminal{
                     dictionaryId: did,
                     
                     Forward: lof.Valid && lof.Int64 > oldestAllowedTime,
@@ -525,7 +585,7 @@ func (db *Database) terminalsGetStatus(ids map[int]bool) (map[int]TerminalStatus
             }
         }
         for did := range remainingIds {
-            results[did] = TerminalStatus{
+            results[did] = Terminal{
                 dictionaryId: did,
                 
                 Forward: false,
@@ -537,7 +597,7 @@ func (db *Database) terminalsGetStatus(ids map[int]bool) (map[int]TerminalStatus
         return nil, err
     }
 }
-func (db *Database) terminalsSetStatus(terminals []*TerminalStatus) (error) {
+func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
     if len(terminals) == 0 {
         return nil
     }
@@ -671,7 +731,7 @@ impl Database {
 
         let mut stmt = self.connection.prepare(format!("SELECT
             dictionaryId,
-            childrenJSONZLIB
+            transitionsJSONZLIB
         FROM
             statistics_{}
         WHERE
@@ -713,10 +773,10 @@ impl Database {
         {
             let mut stmt = tx.prepare(format!("INSERT INTO statistics_{}(
                 dictionaryId,
-                childrenJSONZLIB
+                transitionsJSONZLIB
             ) VALUES (:id, :cjz)
             ON CONFLICT(dictionaryId) DO UPDATE SET
-                childrenJSONZLIB = :cjz
+                transitionsJSONZLIB = :cjz
             ", direction).as_str())?;
             for node in nodes {
                 let mut transitions:Vec<(i32, i32, i64)> = Vec::with_capacity(node.1.len());

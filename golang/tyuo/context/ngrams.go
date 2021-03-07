@@ -24,13 +24,60 @@ package context
 //and, if it qualifies, add an empty slice to the forward or backwards glue
 //options.
 
-type TerminalStatus struct {
+type Terminal struct {
     dictionaryId int
     
     Forward bool
     Reverse bool
 }
-func (ts *TerminalStatus) GetDictionaryId() (int) {
-    return ts.dictionaryId
+func (t *Terminal) GetDictionaryId() (int) {
+    return t.dictionaryId
 }
 
+type transitionSpec struct {
+    dictionaryId int
+    occurrences int
+    lastObserved int
+}
+type transitions struct {
+    transitions map[int]transitionSpec
+}
+//public function to increment/define transitions
+
+type DigramSpec struct {
+    DictionaryIdFirst int
+}
+type Digram struct {
+    transitions
+    DigramSpec
+}
+
+type TrigramSpec struct {
+    DigramSpec
+    
+    DictionaryIdSecond int
+}
+type Trigram struct {
+    transitions
+    TrigramSpec
+}
+
+type QuadgramSpec struct {
+    TrigramSpec
+    
+    DictionaryIdThird int
+}
+type Quadgram struct {
+    transitions
+    QuadgramSpec
+}
+
+type QuintgramSpec struct {
+    QuadgramSpec
+    
+    DictionaryIdFourth int
+}
+type Quintgram struct {
+    transitions
+    QuintgramSpec
+}

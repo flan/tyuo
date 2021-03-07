@@ -11,3 +11,9 @@
 //tokens and ban any resulting IDs in the runtime memory
 //That would probably be much more performant.
 
+//when generating paths from the top level, run each searchBranch in its
+//own goroutine, so there should be ten in the base case, all doing reads
+//on the database; this should be fine, since only one request can be served
+//by each context at any time and creation and learning are separate flows --
+//creation is strictly read-only
+

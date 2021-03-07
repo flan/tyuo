@@ -14,10 +14,9 @@ var voidInstance = void{}
 //used to denote the end of a sentence, so it will never be a valid ID
 const undefinedDictionaryId = -2147483648 //int32 minimum; should constrain database sizing
 
-//TODO: these should be flags
-const rescaleThreshold = 1000.0
-const rescaleDecimator = 3.0
-//NOTE: when decimating, use math.RoundToEven to get to 0 faster to slimite obsolete paths
+//TODO: these should be flags, or maybe part of the context
+const rescaleThreshold = 1000
+const rescaleDecimator = 3
 
 var maxNgramAge = flag.Int64("max-ngram-age", 3600 * 24 * 365, "the number of seconds for which to remember an n-gram value")
 
