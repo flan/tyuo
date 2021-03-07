@@ -23,3 +23,14 @@ package context
 //when producing output, fetch the terminal status of the chosen keyword
 //and, if it qualifies, add an empty slice to the forward or backwards glue
 //options.
+
+type TerminalStatus struct {
+    dictionaryId int
+    
+    Forward bool
+    Reverse bool
+}
+func (ts *TerminalStatus) GetDictionaryId() (int) {
+    return ts.dictionaryId
+}
+

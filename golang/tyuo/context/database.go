@@ -2,13 +2,21 @@ package context
 import (
     "database/sql"
     "encoding/json"
+    "flag"
     "fmt"
     "os"
     "path/filepath"
     "strings"
+    "time"
 
     _ "github.com/mattn/go-sqlite3"
 )
+
+var dbDebug = flag.Bool("db-debug", false, "whether to use database debugging features; should usually be false")
+
+func getOldestAllowedTime() (int64) {
+    return time.Now().Unix() - *maxNgramAge
+}
 
 func prepareSqliteArrayParams(start int, count int) (string) {
     arrayParams := make([]string, count)
@@ -32,14 +40,14 @@ func intSliceToInterfaceSlice(s []int) ([]interface{}) {
     }
     return output
 }
-func stringSetToInterfaceSlice(s map[string]void) ([]interface{}) {
+func stringSetToInterfaceSlice(s map[string]bool) ([]interface{}) {
     output := make([]interface{}, 0, len(s))
     for k, _ := range(s) {
         output = append(output, k)
     }
     return output
 }
-func intSetToInterfaceSlice(s map[int]void) ([]interface{}) {
+func intSetToInterfaceSlice(s map[int]bool) ([]interface{}) {
     output := make([]interface{}, 0, len(s))
     for k, _ := range(s) {
         output = append(output, k)
@@ -149,8 +157,12 @@ func prepareDatabase(
     
     logger.Debugf("preparing database pragma...");
     //while foreign keys are declared in the structure, because tokens are never
-    //removed from the database, their enforcement is unnecessary
-    if _, err = connection.Exec("PRAGMA foreign_keys = OFF"); err != nil {
+    //removed from the database, their enforcement is unnecessary outside of debugging
+    foreignKeys := "OFF"
+    if *dbDebug {
+        foreignKeys = "ON"
+    }
+    if _, err = connection.Exec(fmt.Sprintf("PRAGMA foreign_keys = %s", foreignKeys)); err != nil {
         connection.Close()
         return nil, err
     }
@@ -179,14 +191,14 @@ func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]float64) 
             for k, v := range buffer {
                 if deserialisedV, okay := v.(float64); okay {
                     deserialised[k] = deserialisedV
-                } /*else { //otherwise, silently let it get dropped
+                } else { //some sort of database corruption, almost certainly due to misuse
                     logger.Warningf("unable to infer count for %s in capitalisedFormsJSON; reinitialising state: %s", k, err)
-                }*/
+                }
             }
             return deserialised
-        } /*else { //otherwise, silently reinitialise state
+        } else { //some sort of database corruption, almost certainly due to misuse
             logger.Warningf("unable to deserialise capitalisedFormsJSON; reinitialising state: %s", err)
-        }*/
+        }
     }
     return make(map[string]float64, 0)
 }
@@ -202,7 +214,7 @@ func serialiseCapitalisedFormsJSON(data map[string]float64) (interface{}) {
         return nil
     }
 }
-func (db *Database) dictionaryEnumerateTokensBySubstring(tokens map[string]void) (map[string]int, error) {
+func (db *Database) dictionaryEnumerateTokensBySubstring(tokens map[string]bool) (map[string]int, error) {
     if stmt, err := db.connection.Prepare(`
     SELECT
         caseInsensitiveRepresentation,
@@ -256,7 +268,7 @@ func processDictionaryRows(maxCount int, rows *sql.Rows) ([]dictionaryToken, err
     }
     return output, nil
 }
-func (db *Database) dictionaryGetTokensByToken(tokens map[string]void) ([]dictionaryToken, error) {
+func (db *Database) dictionaryGetTokensByToken(tokens map[string]bool) ([]dictionaryToken, error) {
     if len(tokens) == 0 {
         return make([]dictionaryToken, 0), nil
     }
@@ -270,8 +282,9 @@ func (db *Database) dictionaryGetTokensByToken(tokens map[string]void) ([]dictio
     FROM
         dictionary
     WHERE
-        caseInsensitiveRepresentation IN ({})
-    `, prepareSqliteArrayParams(1, len(tokens)))
+        caseInsensitiveRepresentation IN (%s)
+    LIMIT %d
+    `, prepareSqliteArrayParams(1, len(tokens)), len(tokens))
     
     if rows, err := db.connection.Query(
         query,
@@ -283,7 +296,7 @@ func (db *Database) dictionaryGetTokensByToken(tokens map[string]void) ([]dictio
         return nil, err
     }
 }
-func (db *Database) dictionaryGetTokensById(ids map[int]void) ([]dictionaryToken, error) {
+func (db *Database) dictionaryGetTokensById(ids map[int]bool) ([]dictionaryToken, error) {
     if len(ids) == 0 {
         return make([]dictionaryToken, 0), nil
     }
@@ -297,8 +310,9 @@ func (db *Database) dictionaryGetTokensById(ids map[int]void) ([]dictionaryToken
     FROM
         dictionary
     WHERE
-        id IN ({})
-    `, prepareSqliteArrayParams(1, len(ids)))
+        id IN (%s)
+    LIMIT %d
+    `, prepareSqliteArrayParams(1, len(ids)), len(ids))
     
     if rows, err := db.connection.Query(
         query,
@@ -391,8 +405,9 @@ func (db *Database) bannedLoadBannedTokens(
     
     if len(tokenSubset) > 0 {
         query += fmt.Sprintf(
-            "WHERE banned.caseInsensitiveRepresentation IN (%s)",
+            "WHERE banned.caseInsensitiveRepresentation IN (%s) LIMIT %d",
             prepareSqliteArrayParams(1, len(tokenSubset)),
+            len(tokenSubset),
         )
     }
     if rows, err := db.connection.Query(
@@ -460,6 +475,185 @@ func (db *Database) bannedUnbanTokens(tokens []string) (error) {
     _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(tokens)...)
     return err
 }
+
+
+
+
+func (db *Database) terminalsGetStatus(ids map[int]bool) (map[int]TerminalStatus, error) {
+    if len(ids) == 0 {
+        return make(map[int]TerminalStatus, 0), nil
+    }
+    
+    remainingIds := make(map[int]bool, len(ids))
+    for id := range ids {
+        remainingIds[id] = false
+    }
+    
+    oldestAllowedTime := getOldestAllowedTime()
+    
+    query := fmt.Sprintf(`
+    SELECT
+        dictionaryId,
+        lastObservedForward,
+        lastObservedReverse
+    FROM
+        terminals
+    WHERE
+        id IN (%s)
+    LIMIT %d
+    `, prepareSqliteArrayParams(1, len(ids)), len(ids))
+    
+    if rows, err := db.connection.Query(
+        query,
+        intSetToInterfaceSlice(ids)...,
+    ); err == nil {
+        defer rows.Close()
+        results := make(map[int]TerminalStatus, len(ids))
+        for rows.Next() {
+            var did int
+            var lof, lor sql.NullInt64
+            if err:= rows.Scan(&did, &lof, &lor); err == nil {
+                results[did] = TerminalStatus{
+                    dictionaryId: did,
+                    
+                    Forward: lof.Valid && lof.Int64 > oldestAllowedTime,
+                    Reverse: lor.Valid && lor.Int64 > oldestAllowedTime,
+                }
+                delete(remainingIds, did)
+            } else {
+                return nil, err
+            }
+        }
+        for did := range remainingIds {
+            results[did] = TerminalStatus{
+                dictionaryId: did,
+                
+                Forward: false,
+                Reverse: false,
+            }
+        }
+        return results, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) terminalsSetStatus(terminals []*TerminalStatus) (error) {
+    if len(terminals) == 0 {
+        return nil
+    }
+    
+    currentTime := time.Now().Unix()
+    
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return err
+    }
+    
+    //it should be quite rare that the same symbol is both the forward- and
+    //reverse-terminal while learning, so the logic was simplified a bit, opting
+    //to double-execute if that case happens
+    if stmtForward, err := tx.Prepare(`
+    INSERT INTO terminals(
+        dictionaryId,
+        lastObservedForward,
+        lastObservedReverse
+    ) VALUES (?1, ?2, NULL)
+    ON CONFLICT(id) DO UPDATE SET
+        lastObservedForward = ?3
+    `); err == nil {
+        if stmtReverse, err := tx.Prepare(`
+        INSERT INTO terminals(
+            dictionaryId,
+            lastObservedForward,
+            lastObservedReverse
+        ) VALUES (?1, NULL, ?2)
+        ON CONFLICT(id) DO UPDATE SET
+            lastObservedReverse = ?3
+        `); err == nil {
+            for _, terminal := range terminals {
+                if terminal.Forward {
+                    _, err = stmtForward.Exec(
+                        terminal.dictionaryId,
+                        currentTime,
+                        currentTime,
+                    )
+                }
+                if err == nil && terminal.Reverse {
+                    _, err = stmtReverse.Exec(
+                        terminal.dictionaryId,
+                        currentTime,
+                        currentTime,
+                    )
+                }
+                if err != nil {
+                    if e := stmtForward.Close(); e != nil {
+                        logger.Warningf("unable to close forward statement: %s", e)
+                    }
+                    if e := stmtReverse.Close(); e != nil {
+                        logger.Warningf("unable to close reverse statement: %s", e)
+                    }
+                    if e := tx.Rollback(); e != nil {
+                        logger.Warningf("unable to roll-back transaction: %s", e)
+                    }
+                    return err
+                }
+            }
+            stmtReverse.Close()
+        }
+        stmtForward.Close()
+    } else {
+        if e := tx.Rollback(); e != nil {
+            logger.Warningf("unable to roll-back transaction: %s", e)
+        }
+        return err
+    }
+    return tx.Commit()
+}
+//this provides starting-point candidates for doing a forward or reverse
+//random-walk, in the event that a keyword-oriented walk fails.
+func (db *Database) terminalsGetStarters(count int, forward bool) ([]int, error) {
+    if count <= 0 {
+        return make([]int, 0), nil
+    }
+    
+    direction := "Reverse" //a reverse-terminal is position 0 in production
+    if !forward {
+        direction = "Forward"
+    }
+    
+    query := fmt.Sprintf(`
+    SELECT
+        dictionaryId
+    FROM
+        terminals
+    WHERE
+        lastObserved%s > ?1
+    ORDER BY RANDOM()
+    LIMIT %d
+    `, direction, count)
+    
+    if rows, err := db.connection.Query(
+        query,
+        getOldestAllowedTime(),
+    ); err == nil {
+        defer rows.Close()
+        
+        results := make([]int, 0, count)
+        for rows.Next() {
+            var did int
+            if err:= rows.Scan(&did); err == nil {
+                results = append(results, did)
+            } else {
+                return nil, err
+            }
+        }
+        return results, nil
+    } else {
+        return nil, err
+    }
+}
+
+
 
 
 
@@ -565,12 +759,10 @@ impl Database {
 //terminal lookup's response is a pair of bools, indicating whether it is
 //recognised as a forward or reverse terminal
 
-//there also needs to be a function to select a few reverse-terminals for
-//use as a starting point for beginning a random walk as a fallback
-//for production flows.
 
 //multiple requests can be made at once (using a prepared statement approach);
-//the values returned will be in the same order as they were received
+//the values returned will be a map, keyed by the lookup parameter, with
+//newly initialised structures where not found
 
 
 
