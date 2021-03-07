@@ -391,8 +391,8 @@ func (db *Database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
         capitalisedFormsJSON
     ) VALUES (?1, ?2, ?3, ?4)
     ON CONFLICT(id) DO UPDATE SET
-        caseInsensitiveOccurrences = ?5,
-        capitalisedFormsJSON = ?6
+        caseInsensitiveOccurrences = ?3,
+        capitalisedFormsJSON = ?4
     `); err == nil {
         for _, token := range tokens {
             cfj := serialiseCapitalisedFormsJSON(token.capitalisedForms)
@@ -400,9 +400,6 @@ func (db *Database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
             if _, err = stmt.Exec(
                 token.caseInsensitiveRepresentation,
                 token.id,
-                token.caseInsensitiveOccurrences,
-                cfj,
-                //update-case:
                 token.caseInsensitiveOccurrences,
                 cfj,
             ); err != nil {
@@ -606,7 +603,7 @@ func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
         lastObservedReverse
     ) VALUES (?1, ?2, NULL)
     ON CONFLICT(dictionaryId) DO UPDATE SET
-        lastObservedForward = ?3
+        lastObservedForward = ?2
     `); err == nil {
         if stmtReverse, err := tx.Prepare(`
         INSERT INTO terminals(
@@ -615,20 +612,18 @@ func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
             lastObservedReverse
         ) VALUES (?1, NULL, ?2)
         ON CONFLICT(dictionaryId) DO UPDATE SET
-            lastObservedReverse = ?3
+            lastObservedReverse = ?2
         `); err == nil {
             for _, terminal := range terminals {
                 if terminal.Forward {
                     _, err = stmtForward.Exec(
                         terminal.dictionaryId,
                         currentTime,
-                        currentTime,
                     )
                 }
                 if err == nil && terminal.Reverse {
                     _, err = stmtReverse.Exec(
                         terminal.dictionaryId,
-                        currentTime,
                         currentTime,
                     )
                 }
@@ -755,12 +750,14 @@ func serialiseTransitionsJSONZLIB(specs map[int]transitionSpec) ([]byte) {
     return []byte{120, 156, 139, 142, 5, 0, 1, 21, 0, 185} //zlib-compressed empty JSON array
 }
 
+
 func ngramsGetDirectionString(forward bool) (string) {
     if forward {
         return "forward"
     }
     return "reverse"
 }
+
 
 func (db *Database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAllowedTime int64) (map[DigramSpec]Digram, error) {
     if len(specs) == 0 {
@@ -780,22 +777,20 @@ func (db *Database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAl
         
         output := make(map[DigramSpec]Digram, len(specs))
         for spec := range specs {
+            var transitions Transitions
             var transitionsJSONZLIB []byte
             row := stmt.QueryRow(spec.DictionaryIdFirst)
             if err := row.Scan(&transitionsJSONZLIB); err == nil {
-                output[spec] = Digram{
-                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
-                    
-                    dictionaryIdFirst: spec.DictionaryIdFirst,
-                }
-            } else if err != sql.ErrNoRows {
-                return nil, err
+                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+            } else if err == sql.ErrNoRows {
+                transitions = prepareTransitionsEmpty()
             } else {
-                output[spec] = Digram{
-                    Transitions: prepareTransitionsEmpty(),
-                    
-                    dictionaryIdFirst: spec.DictionaryIdFirst,
-                }
+                return nil, err
+            }
+            output[spec] = Digram{
+                Transitions: transitions,
+                
+                dictionaryIdFirst: spec.DictionaryIdFirst,
             }
         }
         return output, nil
@@ -819,13 +814,12 @@ func (db *Database) digramsSet(digrams []Digram, forward bool) (error) {
         transitionsJSONZLIB
     ) VALUES (?1, ?2)
     ON CONFLICT(dictionaryIdFirst) DO UPDATE SET
-        transitionsJSONZLIB = ?3
+        transitionsJSONZLIB = ?2
     `, ngramsGetDirectionString(forward))); err == nil {
         for _, digram := range digrams {
             transitionsJSONZLIB := serialiseTransitionsJSONZLIB(digram.Transitions.transitions)
             if _, err = stmt.Exec(
                 digram.dictionaryIdFirst,
-                transitionsJSONZLIB,
                 transitionsJSONZLIB,
             ); err != nil {
                 if e := stmt.Close(); e != nil {
@@ -848,6 +842,91 @@ func (db *Database) digramsSet(digrams []Digram, forward bool) (error) {
 }
 
 
+func (db *Database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldestAllowedTime int64) (map[TrigramSpec]Trigram, error) {
+    if len(specs) == 0 {
+        return make(map[TrigramSpec]Trigram, 0), nil
+    }
+    
+    if stmt, err := db.connection.Prepare(fmt.Sprintf(`
+    SELECT
+        transitionsJSONZLIB
+    FROM
+        trigrams_{}
+    WHERE
+        dictionaryIdFirst = ?1 AND
+        dictionaryIdSecond = ?2
+    LIMIT 1
+    `, ngramsGetDirectionString(forward))); err == nil {
+        defer stmt.Close()
+        
+        output := make(map[TrigramSpec]Trigram, len(specs))
+        for spec := range specs {
+            var transitions Transitions
+            var transitionsJSONZLIB []byte
+            row := stmt.QueryRow(spec.DictionaryIdFirst, spec.DictionaryIdSecond)
+            if err := row.Scan(&transitionsJSONZLIB); err == nil {
+                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+            } else if err == sql.ErrNoRows {
+                transitions = prepareTransitionsEmpty()
+            } else {
+                return nil, err
+            }
+            output[spec] = Trigram{
+                Transitions: transitions,
+                
+                dictionaryIdFirst: spec.DictionaryIdFirst,
+                dictionaryIdSecond: spec.DictionaryIdSecond,
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) trigramsSet(trigrams []Trigram, forward bool) (error) {
+    if len(trigrams) == 0 {
+        return nil
+    }
+    
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return err
+    }
+    
+    if stmt, err := tx.Prepare(fmt.Sprintf(`
+    INSERT INTO trigrams_%s(
+        dictionaryIdFirst,
+        dictionaryIdSecond,
+        transitionsJSONZLIB
+    ) VALUES (?1, ?2, ?3)
+    ON CONFLICT(dictionaryIdFirst, dictionaryIdSecond) DO UPDATE SET
+        transitionsJSONZLIB = ?3
+    `, ngramsGetDirectionString(forward))); err == nil {
+        for _, trigram := range trigrams {
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(trigram.Transitions.transitions)
+            if _, err = stmt.Exec(
+                trigram.dictionaryIdFirst,
+                trigram.dictionaryIdSecond,
+                transitionsJSONZLIB,
+            ); err != nil {
+                if e := stmt.Close(); e != nil {
+                    logger.Warningf("unable to close statement: %s", e)
+                }
+                if e := tx.Rollback(); e != nil {
+                    logger.Warningf("unable to roll-back transaction: %s", e)
+                }
+                return err
+            }
+        }
+        stmt.Close()
+    } else {
+        if e := tx.Rollback(); e != nil {
+            logger.Warningf("unable to roll-back transaction: %s", e)
+        }
+        return err
+    }
+    return tx.Commit()
+}
 func (db *Database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Trigram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
@@ -883,55 +962,268 @@ func (db *Database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forwa
     }
 }
 
-/*
-type TrigramSpec struct {
-    DictionaryIdFirst int
-    DictionaryIdSecond int
-}
-type Trigram struct {
-    transitions
+
+func (db *Database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuadgramSpec]Quadgram, error) {
+    if len(specs) == 0 {
+        return make(map[QuadgramSpec]Quadgram, 0), nil
+    }
     
-    DictionaryIdFirst int
-    DictionaryIdSecond int
+    if stmt, err := db.connection.Prepare(fmt.Sprintf(`
+    SELECT
+        transitionsJSONZLIB
+    FROM
+        quadgrams_{}
+    WHERE
+        dictionaryIdFirst = ?1 AND
+        dictionaryIdSecond = ?2 AND
+        dictionaryIdThird = ?3
+    LIMIT 1
+    `, ngramsGetDirectionString(forward))); err == nil {
+        defer stmt.Close()
+        
+        output := make(map[QuadgramSpec]Quadgram, len(specs))
+        for spec := range specs {
+            var transitions Transitions
+            var transitionsJSONZLIB []byte
+            row := stmt.QueryRow(spec.DictionaryIdFirst, spec.DictionaryIdSecond, spec.DictionaryIdThird)
+            if err := row.Scan(&transitionsJSONZLIB); err == nil {
+                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+            } else if err == sql.ErrNoRows {
+                transitions = prepareTransitionsEmpty()
+            } else {
+                return nil, err
+            }
+            output[spec] = Quadgram{
+                Transitions: transitions,
+                
+                dictionaryIdFirst: spec.DictionaryIdFirst,
+                dictionaryIdSecond: spec.DictionaryIdSecond,
+                dictionaryIdThird: spec.DictionaryIdThird,
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
 }
-
-type QuadgramSpec struct {
-    DictionaryIdFirst int
-    DictionaryIdSecond int
-    DictionaryIdThird int
-}
-type Quadgram struct {
-    transitions
+func (db *Database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
+    if len(quadgrams) == 0 {
+        return nil
+    }
     
-    DictionaryIdFirst int
-    DictionaryIdSecond int
-    DictionaryIdThird int
-}
-
-type QuintgramSpec struct {
-    DictionaryIdFirst int
-    DictionaryIdSecond int
-    DictionaryIdThird int
-    DictionaryIdFourth int
-}
-type Quintgram struct {
-    transitions
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return err
+    }
     
-    DictionaryIdFirst int
-    DictionaryIdSecond int
-    DictionaryIdThird int
-    DictionaryIdFourth int
+    if stmt, err := tx.Prepare(fmt.Sprintf(`
+    INSERT INTO quadgrams_%s(
+        dictionaryIdFirst,
+        dictionaryIdSecond,
+        dictionaryIdThird,
+        transitionsJSONZLIB
+    ) VALUES (?1, ?2, ?3, ?4)
+    ON CONFLICT(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird) DO UPDATE SET
+        transitionsJSONZLIB = ?4
+    `, ngramsGetDirectionString(forward))); err == nil {
+        for _, quadgram := range quadgrams {
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(quadgram.Transitions.transitions)
+            if _, err = stmt.Exec(
+                quadgram.dictionaryIdFirst,
+                quadgram.dictionaryIdSecond,
+                quadgram.dictionaryIdThird,
+                transitionsJSONZLIB,
+            ); err != nil {
+                if e := stmt.Close(); e != nil {
+                    logger.Warningf("unable to close statement: %s", e)
+                }
+                if e := tx.Rollback(); e != nil {
+                    logger.Warningf("unable to roll-back transaction: %s", e)
+                }
+                return err
+            }
+        }
+        stmt.Close()
+    } else {
+        if e := tx.Rollback(); e != nil {
+            logger.Warningf("unable to roll-back transaction: %s", e)
+        }
+        return err
+    }
+    return tx.Commit()
 }
-*/
+func (db *Database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quadgram, error) {
+    if rows, err := db.connection.Query(fmt.Sprintf(`
+    SELECT
+        dictionaryIdSecond,
+        dictionaryIdThird,
+        transitionsJSONZLIB
+    FROM
+        quadgrams_{}
+    WHERE
+        dictionaryIdFirst = ?1
+    ORDER BY RANDOM()
+    LIMIT %d
+    `, ngramsGetDirectionString(forward), count)); err == nil {
+        defer rows.Close()
+        
+        output := make([]Quadgram, 0, count)
+        for rows.Next() {
+            var dictionaryIdSecond int
+            var dictionaryIdThird int
+            var transitionsJSONZLIB []byte
+            if err:= rows.Scan(&dictionaryIdSecond, &dictionaryIdThird, &transitionsJSONZLIB); err == nil {
+                output = append(output, Quadgram{
+                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    
+                    dictionaryIdFirst: dictionaryIdFirst,
+                    dictionaryIdSecond: dictionaryIdSecond,
+                    dictionaryIdThird: dictionaryIdThird,
+                })
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
 
 
-
-
-
-
-
-
-
+func (db *Database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuintgramSpec]Quintgram, error) {
+    if len(specs) == 0 {
+        return make(map[QuintgramSpec]Quintgram, 0), nil
+    }
+    
+    if stmt, err := db.connection.Prepare(fmt.Sprintf(`
+    SELECT
+        transitionsJSONZLIB
+    FROM
+        quintgrams_{}
+    WHERE
+        dictionaryIdFirst = ?1 AND
+        dictionaryIdSecond = ?2 AND
+        dictionaryIdThird = ?3 AND
+        dictionaryIdFourth = ?4
+    LIMIT 1
+    `, ngramsGetDirectionString(forward))); err == nil {
+        defer stmt.Close()
+        
+        output := make(map[QuintgramSpec]Quintgram, len(specs))
+        for spec := range specs {
+            var transitions Transitions
+            var transitionsJSONZLIB []byte
+            row := stmt.QueryRow(spec.DictionaryIdFirst, spec.DictionaryIdSecond, spec.DictionaryIdThird, spec.DictionaryIdFourth)
+            if err := row.Scan(&transitionsJSONZLIB); err == nil {
+                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+            } else if err == sql.ErrNoRows {
+                transitions = prepareTransitionsEmpty()
+            } else {
+                return nil, err
+            }
+            output[spec] = Quintgram{
+                Transitions: transitions,
+                
+                dictionaryIdFirst: spec.DictionaryIdFirst,
+                dictionaryIdSecond: spec.DictionaryIdSecond,
+                dictionaryIdThird: spec.DictionaryIdThird,
+                dictionaryIdFourth: spec.DictionaryIdFourth,
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *Database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) {
+    if len(quintgrams) == 0 {
+        return nil
+    }
+    
+    tx, err := db.connection.Begin()
+    if err != nil {
+        return err
+    }
+    
+    if stmt, err := tx.Prepare(fmt.Sprintf(`
+    INSERT INTO quintgrams_%s(
+        dictionaryIdFirst,
+        dictionaryIdSecond,
+        dictionaryIdThird,
+        dictionaryIdFourth,
+        transitionsJSONZLIB
+    ) VALUES (?1, ?2, ?3, ?4, ?5)
+    ON CONFLICT(dictionaryIdFirst, dictionaryIdSecond, dictionaryIdThird, dictionaryIdFourth) DO UPDATE SET
+        transitionsJSONZLIB = ?5
+    `, ngramsGetDirectionString(forward))); err == nil {
+        for _, quintgram := range quintgrams {
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(quintgram.Transitions.transitions)
+            if _, err = stmt.Exec(
+                quintgram.dictionaryIdFirst,
+                quintgram.dictionaryIdSecond,
+                quintgram.dictionaryIdThird,
+                quintgram.dictionaryIdFourth,
+                transitionsJSONZLIB,
+            ); err != nil {
+                if e := stmt.Close(); e != nil {
+                    logger.Warningf("unable to close statement: %s", e)
+                }
+                if e := tx.Rollback(); e != nil {
+                    logger.Warningf("unable to roll-back transaction: %s", e)
+                }
+                return err
+            }
+        }
+        stmt.Close()
+    } else {
+        if e := tx.Rollback(); e != nil {
+            logger.Warningf("unable to roll-back transaction: %s", e)
+        }
+        return err
+    }
+    return tx.Commit()
+}
+func (db *Database) quintgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quintgram, error) {
+    if rows, err := db.connection.Query(fmt.Sprintf(`
+    SELECT
+        dictionaryIdSecond,
+        dictionaryIdThird,
+        dictionaryIdFourth,
+        transitionsJSONZLIB
+    FROM
+        quintgrams_{}
+    WHERE
+        dictionaryIdFirst = ?1
+    ORDER BY RANDOM()
+    LIMIT %d
+    `, ngramsGetDirectionString(forward), count)); err == nil {
+        defer rows.Close()
+        
+        output := make([]Quintgram, 0, count)
+        for rows.Next() {
+            var dictionaryIdSecond int
+            var dictionaryIdThird int
+            var dictionaryIdFourth int
+            var transitionsJSONZLIB []byte
+            if err:= rows.Scan(&dictionaryIdSecond, &dictionaryIdThird, &dictionaryIdFourth, &transitionsJSONZLIB); err == nil {
+                output = append(output, Quintgram{
+                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    
+                    dictionaryIdFirst: dictionaryIdFirst,
+                    dictionaryIdSecond: dictionaryIdSecond,
+                    dictionaryIdThird: dictionaryIdThird,
+                    dictionaryIdFourth: dictionaryIdFourth,
+                })
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
 
 
 
