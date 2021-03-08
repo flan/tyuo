@@ -57,10 +57,10 @@ type contextConfigLearning struct {
 }
 
 type contextConfigProduction struct {
-    //how many paths to explore from the initial token
-    SearchBranchesInitial int //try 16
+    //how many paths to explore from the initial token, in both directions
+    SearchBranchesInitial int //try 4
     //how many paths each child should enumerate (but not necessarily explore)
-    SearchBranchesChildren int //try 4
+    SearchBranchesChildren int //try 10
     
     //the minimum number of tokens that need to be produced
     MinLength int
