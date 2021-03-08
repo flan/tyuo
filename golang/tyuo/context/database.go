@@ -1247,31 +1247,9 @@ func (dbm *DatabaseManager) Close() {
     }
     dbm.databases = make(map[string]*Database)
 }
-func (dbm *DatabaseManager) idToPath(contextId string) (string) {
-    return filepath.Join(dbm.dbDir, contextId + ".sqlite3")
-}
-func (dbm *DatabaseManager) Create(contextId string) (error) {
-    logger.Infof("creating database {}...", contextId)
-    if db, err := prepareDatabase(dbm.idToPath(contextId)); err == nil {
-        return db.Close()
-    } else {
-        return err
-    }
-}
-func (dbm *DatabaseManager) Drop(contextId string) (error) {
-    logger.Infof("dropping database {}...", contextId)
-    if database, defined := dbm.databases[contextId]; defined {
-        if err := database.Close(); err != nil {
-            //it'll be referenced anyway, so this isn't critical
-            logger.Warningf("unable to close database %s: %s", contextId, err)
-        }
-        delete(dbm.databases, contextId)
-    }
-    return os.Remove(dbm.idToPath(contextId))
-}
 func (dbm *DatabaseManager) Load(contextId string) (*Database, error) {
     logger.Infof("loading database {}...", contextId)
-    dbPath := dbm.idToPath(contextId)
+    dbPath := filepath.Join(dbm.dbDir, contextId + ".sqlite3")
     if _, err := os.Stat(dbPath); err != nil {
         return nil, err
     }
