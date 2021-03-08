@@ -1,8 +1,5 @@
 package context
 
-//TODO: this should be part of context
-const baseRepresentationThreshold float64 = 0.1
-
 type dictionaryToken struct {
     id int
     baseOccurrences int

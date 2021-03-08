@@ -35,7 +35,7 @@ func processBannedTokens(listPath string) ([]string, error) {
 
 
 type bannedDictionary struct {
-    database *Database
+    database *database
     
     //words from database
     bannedTokens []bannedToken
@@ -46,7 +46,7 @@ type bannedDictionary struct {
     bannedIdsGeneric map[int]void
 }
 func prepareBannedDictionary(
-    database *Database,
+    database *database,
     bannedTokensGeneric []string,
 ) (*bannedDictionary, error) {
     bannedTokens := make([]bannedToken, 0)
@@ -85,7 +85,7 @@ func prepareBannedDictionary(
         bannedIdsGeneric: bannedIdsGeneric,
     }, nil
 }
-func (bd *bannedDictionary) ban(tokens map[string]bool) (error) {
+func (bd *bannedDictionary) ban(tokens stringSet) (error) {
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
         lcaseToken := strings.ToLower(token)
@@ -119,7 +119,7 @@ func (bd *bannedDictionary) ban(tokens map[string]bool) (error) {
     }
     return nil
 }
-func (bd *bannedDictionary) unban(tokens map[string]bool) (error) {
+func (bd *bannedDictionary) unban(tokens stringSet) (error) {
     bannedTokenIndexes := make([]int, 0, len(tokens))
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
@@ -156,24 +156,28 @@ func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
     lcaseS := strings.ToLower(s)
     for _, bt := range bd.bannedTokensGeneric {
         if strings.Contains(lcaseS, bt) {
-            return true;
+            return true
         }
     }
     for _, bt := range bd.bannedTokens {
         if strings.Contains(lcaseS, bt.baseRepresentation) {
-            return true;
+            return true
         }
     }
-    return false;
+    return false
 }
-func (bd *bannedDictionary) isBannedById(ids map[int]bool) (bool) {
+func (bd *bannedDictionary) getIdBannedStatus(ids intSet) (map[int]bool) {
+    results := make(map[int]bool, len(ids))
     for id := range ids {
         if _, defined := bd.bannedIds[id]; defined {
-            return true;
+            results[id] = true
+            continue
         }
         if _, defined := bd.bannedIdsGeneric[id]; defined {
-            return true;
+            results[id] = true
+            continue
         }
+        results[id] = false
     }
-    return false;
+    return results
 }

@@ -37,14 +37,14 @@ func intSliceToInterfaceSlice(s []int) ([]interface{}) {
     }
     return output
 }
-func stringSetToInterfaceSlice(s map[string]bool) ([]interface{}) {
+func stringSetToInterfaceSlice(s stringSet) ([]interface{}) {
     output := make([]interface{}, 0, len(s))
     for k, _ := range(s) {
         output = append(output, k)
     }
     return output
 }
-func intSetToInterfaceSlice(s map[int]bool) ([]interface{}) {
+func intSetToInterfaceSlice(s intSet) ([]interface{}) {
     output := make([]interface{}, 0, len(s))
     for k, _ := range(s) {
         output = append(output, k)
@@ -55,12 +55,12 @@ func intSetToInterfaceSlice(s map[int]bool) ([]interface{}) {
 
 
 
-type Database struct {
+type database struct {
     connection *sql.DB
 }
 func prepareDatabase(
     dbPath string,
-) (*Database, error) {
+) (*database, error) {
     connection, err := sql.Open("sqlite3", dbPath)
     if err != nil {
         return nil, err
@@ -229,11 +229,11 @@ func prepareDatabase(
         return nil, err
     }
 
-    return &Database{
+    return &database{
         connection: connection,
     }, nil
 }
-func (db *Database) Close() (error) {
+func (db *database) Close() (error) {
     return db.connection.Close()
 }
 
@@ -263,7 +263,7 @@ func serialiseVariantFormsJSON(data map[string]int) (interface{}) {
         return nil
     }
 }
-func (db *Database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
+func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
     if stmt, err := db.connection.Prepare(`
     SELECT
         baseRepresentation,
@@ -317,7 +317,7 @@ func processDictionaryRows(maxCount int, rows *sql.Rows) ([]dictionaryToken, err
     }
     return output, nil
 }
-func (db *Database) dictionaryGetTokensByToken(tokens map[string]bool) ([]dictionaryToken, error) {
+func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]dictionaryToken, error) {
     if len(tokens) == 0 {
         return make([]dictionaryToken, 0), nil
     }
@@ -345,7 +345,7 @@ func (db *Database) dictionaryGetTokensByToken(tokens map[string]bool) ([]dictio
         return nil, err
     }
 }
-func (db *Database) dictionaryGetTokensById(ids map[int]bool) ([]dictionaryToken, error) {
+func (db *database) dictionaryGetTokensById(ids intSet) ([]dictionaryToken, error) {
     if len(ids) == 0 {
         return make([]dictionaryToken, 0), nil
     }
@@ -373,7 +373,7 @@ func (db *Database) dictionaryGetTokensById(ids map[int]bool) ([]dictionaryToken
         return nil, err
     }
 }
-func (db *Database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
+func (db *database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
     if len(tokens) == 0 {
         return nil
     }
@@ -421,7 +421,7 @@ func (db *Database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
     }
     return tx.Commit()
 }
-func (db *Database) dictionaryGetNextIdentifier() (int, error) {
+func (db *database) dictionaryGetNextIdentifier() (int, error) {
     var maxIdentifier = undefinedDictionaryId //lowest allowable identifier, used to initialise dictionaries
     const query = "SELECT MAX(id) FROM dictionary"
     row := db.connection.QueryRow(query)
@@ -436,7 +436,7 @@ func (db *Database) dictionaryGetNextIdentifier() (int, error) {
 
 
 
-func (db *Database) bannedLoadBannedTokens(
+func (db *database) bannedLoadBannedTokens(
     tokenSubset []string,
 ) ([]bannedToken, error) {
     query := `
@@ -480,7 +480,7 @@ func (db *Database) bannedLoadBannedTokens(
         return nil, err
     }
 }
-func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
+func (db *database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
     tx, err := db.connection.Begin()
     if err != nil {
         return nil, err
@@ -511,7 +511,7 @@ func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
     }
     return db.bannedLoadBannedTokens(tokens);
 }
-func (db *Database) bannedUnbanTokens(tokens []string) (error) {
+func (db *database) bannedUnbanTokens(tokens []string) (error) {
     query := fmt.Sprintf(`
     DELETE FROM
         dictionary_banned
@@ -525,12 +525,12 @@ func (db *Database) bannedUnbanTokens(tokens []string) (error) {
 
 
 
-func (db *Database) terminalsGetTerminals(ids map[int]bool, oldestAllowedTime int64) (map[int]Terminal, error) {
+func (db *database) terminalsGetTerminals(ids intSet, oldestAllowedTime int64) (map[int]Terminal, error) {
     if len(ids) == 0 {
         return make(map[int]Terminal, 0), nil
     }
     
-    remainingIds := make(map[int]bool, len(ids))
+    remainingIds := make(intSet, len(ids))
     for id := range ids {
         remainingIds[id] = false
     }
@@ -581,7 +581,7 @@ func (db *Database) terminalsGetTerminals(ids map[int]bool, oldestAllowedTime in
         return nil, err
     }
 }
-func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
+func (db *database) terminalsSetStatus(terminals []*Terminal) (error) {
     if len(terminals) == 0 {
         return nil
     }
@@ -653,7 +653,7 @@ func (db *Database) terminalsSetStatus(terminals []*Terminal) (error) {
 }
 //this provides starting-point candidates for doing a forward- or reverse-
 //random-walk, in the event that a keyword-oriented walk fails.
-func (db *Database) terminalsGetStarters(count int, forward bool, oldestAllowedTime int64) ([]int, error) {
+func (db *database) terminalsGetStarters(count int, forward bool, oldestAllowedTime int64) ([]int, error) {
     if count <= 0 {
         return make([]int, 0), nil
     }
@@ -759,7 +759,7 @@ func ngramsGetDirectionString(forward bool) (string) {
 }
 
 
-func (db *Database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAllowedTime int64) (map[DigramSpec]Digram, error) {
+func (db *database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAllowedTime int64) (map[DigramSpec]Digram, error) {
     if len(specs) == 0 {
         return make(map[DigramSpec]Digram, 0), nil
     }
@@ -798,7 +798,7 @@ func (db *Database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAl
         return nil, err
     }
 }
-func (db *Database) digramsSet(digrams []Digram, forward bool) (error) {
+func (db *database) digramsSet(digrams []Digram, forward bool) (error) {
     if len(digrams) == 0 {
         return nil
     }
@@ -842,7 +842,7 @@ func (db *Database) digramsSet(digrams []Digram, forward bool) (error) {
 }
 
 
-func (db *Database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldestAllowedTime int64) (map[TrigramSpec]Trigram, error) {
+func (db *database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldestAllowedTime int64) (map[TrigramSpec]Trigram, error) {
     if len(specs) == 0 {
         return make(map[TrigramSpec]Trigram, 0), nil
     }
@@ -883,7 +883,7 @@ func (db *Database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldest
         return nil, err
     }
 }
-func (db *Database) trigramsSet(trigrams []Trigram, forward bool) (error) {
+func (db *database) trigramsSet(trigrams []Trigram, forward bool) (error) {
     if len(trigrams) == 0 {
         return nil
     }
@@ -927,7 +927,7 @@ func (db *Database) trigramsSet(trigrams []Trigram, forward bool) (error) {
     }
     return tx.Commit()
 }
-func (db *Database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Trigram, error) {
+func (db *database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Trigram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
         dictionaryIdSecond,
@@ -963,7 +963,7 @@ func (db *Database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forwa
 }
 
 
-func (db *Database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuadgramSpec]Quadgram, error) {
+func (db *database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuadgramSpec]Quadgram, error) {
     if len(specs) == 0 {
         return make(map[QuadgramSpec]Quadgram, 0), nil
     }
@@ -1006,7 +1006,7 @@ func (db *Database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, olde
         return nil, err
     }
 }
-func (db *Database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
+func (db *database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
     if len(quadgrams) == 0 {
         return nil
     }
@@ -1052,7 +1052,7 @@ func (db *Database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
     }
     return tx.Commit()
 }
-func (db *Database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quadgram, error) {
+func (db *database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quadgram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
         dictionaryIdSecond,
@@ -1091,7 +1091,7 @@ func (db *Database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forw
 }
 
 
-func (db *Database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuintgramSpec]Quintgram, error) {
+func (db *database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuintgramSpec]Quintgram, error) {
     if len(specs) == 0 {
         return make(map[QuintgramSpec]Quintgram, 0), nil
     }
@@ -1136,7 +1136,7 @@ func (db *Database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, ol
         return nil, err
     }
 }
-func (db *Database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) {
+func (db *database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) {
     if len(quintgrams) == 0 {
         return nil
     }
@@ -1184,7 +1184,7 @@ func (db *Database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) 
     }
     return tx.Commit()
 }
-func (db *Database) quintgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quintgram, error) {
+func (db *database) quintgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quintgram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
         dictionaryIdSecond,
@@ -1228,26 +1228,26 @@ func (db *Database) quintgramsGetOnlyFirst(dictionaryIdFirst int, count int, for
 
 
 
-type DatabaseManager struct {
+type databaseManager struct {
     dbDir string
     
-    databases map[string]*Database
+    databases map[string]*database
 }
-func prepareDatabaseManager(dbDir string) (*DatabaseManager) {
-    return &DatabaseManager{
+func prepareDatabaseManager(dbDir string) (*databaseManager) {
+    return &databaseManager{
         dbDir: dbDir,
         
-        databases: make(map[string]*Database),
+        databases: make(map[string]*database),
     }
 }
-func (dbm *DatabaseManager) Close() {
+func (dbm *databaseManager) Close() {
     logger.Debugf("closing databases...")
     for _, database := range dbm.databases {
         database.Close();
     }
-    dbm.databases = make(map[string]*Database)
+    dbm.databases = make(map[string]*database)
 }
-func (dbm *DatabaseManager) Load(contextId string) (*Database, error) {
+func (dbm *databaseManager) Load(contextId string) (*database, error) {
     logger.Infof("loading database {}...", contextId)
     dbPath := filepath.Join(dbm.dbDir, contextId + ".sqlite3")
     if _, err := os.Stat(dbPath); err != nil {

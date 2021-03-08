@@ -1,5 +1,6 @@
 package context
 import (
+    "sync"
     "time"
 )
 
@@ -17,8 +18,8 @@ type contextConfigNgrams struct {
     Digrams bool
     /* trigrams are a fairly middle-ground option, producing relevant
      * observations with some regularity and having about as much
-     * sentence-structure correctness as a machine-translation from a
-     * language with no common ancestry.
+     * sentence-structure correctness as a machine-translation between
+     * languages with no common ancestry.
      */
     Trigrams bool
     /*
@@ -42,11 +43,25 @@ type contextConfigLearning struct {
     //it is automatically fed to any enabled n-gram structures that
     //can accomodate the given length
     MinLength int
+    
     //how long to hold on to n-gram structures
     MaxAge int64
+    
+    //the number of dictionary occurrences or transitions at which
+    //to trigger rescale logic, which eliminates obsolete entries and
+    //keeps the numbers in check
+    RescaleThreshold int //should probably be 1000
+    //the divisor for rescaling; this affects how frequently it happens
+    //and how long rare entries hang around
+    RescaleDenominator int //should probably be 3
 }
 
 type contextConfigProduction struct {
+    //how many paths to explore from the initial token
+    SearchBranchesInitial int //try 16
+    //how many paths each child should enumerate (but not necessarily explore)
+    SearchBranchesChildren int //try 4
+    
     //the minimum number of tokens that need to be produced
     MinLength int
     //the upper limit on how long a production can be
@@ -61,7 +76,7 @@ type contextConfigProduction struct {
     TargetMaxLength int
     //the likelihood of stopping production, upon finding a terminal,
     //after reaching the target range
-    TargetStopProbability
+    TargetStopProbability float32
     //NOTE: for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
     
     //the percentage of a token's representation that need to be
@@ -114,39 +129,92 @@ type contextConfig struct {
         <language>.nonkey
 */
 
-func Test(contextDir string) () {
-    dbm := prepareDatabaseManager(contextDir)
-    if err := dbm.Create("hi"); err != nil {
-        logger.Errorf("unable to create database: %s", err)
+func intSliceToSet(i []int) (intSet) {
+    iMap := make(intSet, len(i))
+    for _, k := range i {
+        iMap[k] = false
     }
-    if err := dbm.Drop("hi"); err != nil {
-        logger.Errorf("unable to drop database: %s", err)
-    }
+    return iMap
 }
-
+func stringSliceToSet(s []string) (stringSet) {
+    sMap := make(stringSet, len(s))
+    for _, k := range s {
+        sMap[k] = false
+    }
+    return sMap
+}
 
 type Context struct {
-    language string
-    
     config contextConfig
+    
+    database *database
+    bannedDictionary bannedDictionary
+    
+    //users of this struct are expected to respect this lock
+    //learning is a writing flow; everything else is reading
+    Lock sync.RWMutex
 }
-func (c *Context) Language() (string) {
-    return c.language
+func (c *Context) GetLanguage() (string) {
+    return c.config.Language
+}
+func (c *Context) AreDigramsEnabled() (bool) {
+    return c.config.Ngrams.Digrams
+}
+func (c *Context) AreTrigramsEnabled() (bool) {
+    return c.config.Ngrams.Trigrams
+}
+func (c *Context) AreQuadgramsEnabled() (bool) {
+    return c.config.Ngrams.Quadgrams
+}
+func (c *Context) AreQuintgramsEnabled() (bool) {
+    return c.config.Ngrams.Quintgrams
 }
 
-//there also needs to be a Lock and Unlock function; these are what
-//allow the TCP service to not care how many requests it serves
-//and to control simultaneous access to the database
 
-func(c *Context) getOldestAllowedTime() (int64) {
-    return time.Now().Unix() - *maxNgramAge
+
+
+func (c *Context) getOldestAllowedTime() (int64) {
+    return time.Now().Unix() - c.config.Learning.MaxAge
+}
+
+func (c *Context) GetTerminals(ids []int) (map[int]Terminal, error) {
+    return c.database.terminalsGetTerminals(
+        intSliceToSet(ids),
+        c.getOldestAllowedTime(),
+    )
+}
+//TODO: define other paths for n-gram database access
+
+
+func (c *Context) IsAllowed(s string) (bool) {
+    return !c.bannedDictionary.containsBannedToken(s)
+}
+func (c *Context) GetIdBannedStatus(ids []int) (map[int]bool) {
+    return c.bannedDictionary.getIdBannedStatus(intSliceToSet(ids))
 }
 
 
 type ContextManager struct {
+    databaseManager databaseManager
+    
+    bannedTokensGenericByLanguage map[string][]string
+    
     contexts map[string]Context
+    
+    //used internally to control access to GetContext(), so that
+    //resources like the database aren't connected multiple times
+    lock sync.Mutex
 }
-//functions to create, get, and drop contexts
-//create needs to ensure the given language is recognised
-//actually, nothing except "get"; contexts need to be defined
+func (cm *ContextManager) Close() {
+    cm.databaseManager.Close()
+    cm.contexts = make(map[string]Context)
+}
+
+//function to get contexts
+//nothing except "GetContext()"; contexts need to be defined
 //by creating a JSON file on disk.
+
+
+//Only used to cause compilation of this package
+func Test(s string){
+}
