@@ -1,8 +1,5 @@
 package context
 
-//unlike MegaHAL, yuo used trigrams, which will be retained here,
-//but it will also introduce quadgrams
-
 //NOTE for use in logic
 //when attempting to contruct a sentence, do a quadgram search first,
 //changing to trigram on every query-path that doesn't result in a production,

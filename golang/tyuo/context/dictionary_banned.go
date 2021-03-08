@@ -6,7 +6,7 @@ import (
 )
 
 type bannedToken struct {
-    caseInsensitiveRepresentation string
+    baseRepresentation string
     dictionaryId int
 }
 
@@ -92,7 +92,7 @@ func (bd *bannedDictionary) ban(tokens map[string]bool) (error) {
         
         alreadyBanned := false
         for _, bt := range bd.bannedTokens {
-            if bt.caseInsensitiveRepresentation == lcaseToken {
+            if bt.baseRepresentation == lcaseToken {
                 alreadyBanned = true
                 break
             }
@@ -126,7 +126,7 @@ func (bd *bannedDictionary) unban(tokens map[string]bool) (error) {
         lcaseToken := strings.ToLower(token)
         
         for idx, bt := range bd.bannedTokens {
-            if bt.caseInsensitiveRepresentation == lcaseToken {
+            if bt.baseRepresentation == lcaseToken {
                 bannedTokenIndexes = append(bannedTokenIndexes, idx)
                 bannedTokens = append(bannedTokens, lcaseToken)
                 break
@@ -160,7 +160,7 @@ func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
         }
     }
     for _, bt := range bd.bannedTokens {
-        if strings.Contains(lcaseS, bt.caseInsensitiveRepresentation) {
+        if strings.Contains(lcaseS, bt.baseRepresentation) {
             return true;
         }
     }

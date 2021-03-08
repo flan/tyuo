@@ -70,16 +70,16 @@ func prepareDatabase(
     
     logger.Debugf("preparing database structures...");
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS dictionary (
-        caseInsensitiveRepresentation TEXT NOT NULL UNIQUE,
+        baseRepresentation TEXT NOT NULL UNIQUE,
         id INTEGER NOT NULL PRIMARY KEY,
-        caseInsensitiveOccurrences INTEGER NOT NULL,
-        capitalisedFormsJSON TEXT
+        baseOccurrences INTEGER NOT NULL,
+        variantFormsJSON TEXT
     )`); err != nil {
         connection.Close()
         return nil, err
     }
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS dictionary_banned (
-        caseInsensitiveRepresentation TEXT NOT NULL PRIMARY KEY
+        baseRepresentation TEXT NOT NULL PRIMARY KEY
     )`); err != nil {
         connection.Close()
         return nil, err
@@ -240,18 +240,18 @@ func (db *Database) Close() (error) {
 
 
 
-func deserialiseCapitalisedFormsJSON(data *sql.NullString) (map[string]int) {
+func deserialiseVariantFormsJSON(data *sql.NullString) (map[string]int) {
     if data.Valid {
         var buffer map[string]int = nil
         if err := json.Unmarshal([]byte(data.String), &buffer); err == nil {
             return buffer
         } else { //some sort of database corruption, almost certainly due to misuse
-            logger.Warningf("unable to deserialise capitalisedFormsJSON; reinitialising state: %s", err)
+            logger.Warningf("unable to deserialise variantFormsJSON; reinitialising state: %s", err)
         }
     }
     return make(map[string]int)
 }
-func serialiseCapitalisedFormsJSON(data map[string]int) (interface{}) {
+func serialiseVariantFormsJSON(data map[string]int) (interface{}) {
     if len(data) == 0 {
         return nil
     }
@@ -259,19 +259,19 @@ func serialiseCapitalisedFormsJSON(data map[string]int) (interface{}) {
     if buffer, err := json.Marshal(data); err == nil {
         return buffer
     } else {
-        logger.Warningf("unable to serialise capitalisedFormsJSON; reinitialising state: %s", err)
+        logger.Warningf("unable to serialise variantFormsJSON; reinitialising state: %s", err)
         return nil
     }
 }
 func (db *Database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
     if stmt, err := db.connection.Prepare(`
     SELECT
-        caseInsensitiveRepresentation,
+        baseRepresentation,
         id
     FROM
         dictionary
     WHERE
-        caseInsensitiveRepresentation LIKE ?1
+        baseRepresentation LIKE ?1
     `); err == nil {
         defer stmt.Close()
         
@@ -307,9 +307,9 @@ func processDictionaryRows(maxCount int, rows *sql.Rows) ([]dictionaryToken, err
         if err:= rows.Scan(&cir, &did, &cio, &cfj); err == nil {
             output = append(output, dictionaryToken{
                 id: did,
-                caseInsensitiveRepresentation: cir,
-                caseInsensitiveOccurrences: cio,
-                capitalisedForms: deserialiseCapitalisedFormsJSON(&cfj),
+                baseRepresentation: cir,
+                baseOccurrences: cio,
+                variantForms: deserialiseVariantFormsJSON(&cfj),
             })
         } else {
             return nil, err
@@ -324,14 +324,14 @@ func (db *Database) dictionaryGetTokensByToken(tokens map[string]bool) ([]dictio
     
     query := fmt.Sprintf(`
     SELECT
-        caseInsensitiveRepresentation,
+        baseRepresentation,
         id,
-        caseInsensitiveOccurrences,
-        capitalisedFormsJSON
+        baseOccurrences,
+        variantFormsJSON
     FROM
         dictionary
     WHERE
-        caseInsensitiveRepresentation IN (%s)
+        baseRepresentation IN (%s)
     LIMIT %d
     `, prepareSqliteArrayParams(1, len(tokens)), len(tokens))
     
@@ -352,10 +352,10 @@ func (db *Database) dictionaryGetTokensById(ids map[int]bool) ([]dictionaryToken
     
     query := fmt.Sprintf(`
     SELECT
-        caseInsensitiveRepresentation,
+        baseRepresentation,
         id,
-        caseInsensitiveOccurrences,
-        capitalisedFormsJSON
+        baseOccurrences,
+        variantFormsJSON
     FROM
         dictionary
     WHERE
@@ -385,22 +385,22 @@ func (db *Database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
     
     if stmt, err := tx.Prepare(`
     INSERT INTO dictionary(
-        caseInsensitiveRepresentation,
+        baseRepresentation,
         id,
-        caseInsensitiveOccurrences,
-        capitalisedFormsJSON
+        baseOccurrences,
+        variantFormsJSON
     ) VALUES (?1, ?2, ?3, ?4)
     ON CONFLICT(id) DO UPDATE SET
-        caseInsensitiveOccurrences = ?3,
-        capitalisedFormsJSON = ?4
+        baseOccurrences = ?3,
+        variantFormsJSON = ?4
     `); err == nil {
         for _, token := range tokens {
-            cfj := serialiseCapitalisedFormsJSON(token.capitalisedForms)
+            cfj := serialiseVariantFormsJSON(token.variantForms)
             
             if _, err = stmt.Exec(
-                token.caseInsensitiveRepresentation,
+                token.baseRepresentation,
                 token.id,
-                token.caseInsensitiveOccurrences,
+                token.baseOccurrences,
                 cfj,
             ); err != nil {
                 if e := stmt.Close(); e != nil {
@@ -441,17 +441,17 @@ func (db *Database) bannedLoadBannedTokens(
 ) ([]bannedToken, error) {
     query := `
     SELECT
-        banned.caseInsensitiveRepresentation,
+        banned.baseRepresentation,
         dict.id
     FROM
         dictionary_banned AS banned
     LEFT JOIN dictionary AS dict ON
-        banned.caseInsensitiveRepresentation = dict.caseInsensitiveRepresentation
+        banned.baseRepresentation = dict.baseRepresentation
     `
     
     if len(tokenSubset) > 0 {
         query += fmt.Sprintf(
-            "WHERE banned.caseInsensitiveRepresentation IN (%s) LIMIT %d",
+            "WHERE banned.baseRepresentation IN (%s) LIMIT %d",
             prepareSqliteArrayParams(1, len(tokenSubset)),
             len(tokenSubset),
         )
@@ -468,7 +468,7 @@ func (db *Database) bannedLoadBannedTokens(
             var did int
             if err:= rows.Scan(&cir, &did); err == nil {
                 output = append(output, bannedToken{
-                    caseInsensitiveRepresentation: cir,
+                    baseRepresentation: cir,
                     dictionaryId: did,
                 })
             } else {
@@ -488,7 +488,7 @@ func (db *Database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
     
     const query = `
     INSERT INTO
-        dictionary_banned(caseInsensitiveRepresentation)
+        dictionary_banned(baseRepresentation)
     VALUES (?1)
     ON CONFLICT DO NOTHING
     `
@@ -515,7 +515,7 @@ func (db *Database) bannedUnbanTokens(tokens []string) (error) {
     query := fmt.Sprintf(`
     DELETE FROM
         dictionary_banned
-    WHERE caseInsensitiveRepresentation IN (%s)
+    WHERE baseRepresentation IN (%s)
     `, prepareSqliteArrayParams(1, len(tokens)))
     
     _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(tokens)...)

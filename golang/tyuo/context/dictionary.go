@@ -1,13 +1,13 @@
 package context
 
 //TODO: this should be part of context
-const caseSensitiveRepresentationThreshold float64 = 0.1
+const baseRepresentationThreshold float64 = 0.1
 
 type dictionaryToken struct {
     id int
-    caseInsensitiveOccurrences int
-    caseInsensitiveRepresentation string
-    capitalisedForms map[string]int
+    baseOccurrences int
+    baseRepresentation string
+    variantForms map[string]int
 }
 //has a function to return the most appropriate representation
     //this function takes the representation threshold as an argument
