@@ -17,3 +17,13 @@
 //any production with a positive score is a response candidate and will be formatted
 //productions are grouped by score and returned is descending order
 
+
+
+//when producing, do N forward walks from the keyword and N reverse walks,
+//then, for each of the paths that come back (probably grouped by common
+//pattern), do a reverse-walk that looks at the full n-gram pattern and
+//combine those, rather than the two-start-from-keyword MegaHAL approach.
+
+//if there are no viable chains after scoring, then do N forward and reverse
+//walks from the start and end positions, score them, and return that
+
