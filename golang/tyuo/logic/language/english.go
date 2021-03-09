@@ -21,6 +21,9 @@
 //in English, this can probably just be a blanket conversion, with the exception of "it's"
 //this should catch "im", "didnt", "thats" and other such things, and eliminate incorrect
 //pluralised forms
+//...except this doesn't really work, because there might be valid pluralised forms
+//and possessives that would otherwise overlap.
+//NOTE: just treat the tokens as they occur; don't try to correct for them
 //when choosing how to present it, if the selected token is identical to its insensitive form
 //except for whatever delta the language-rules know how to process, then the CaseSensitive
 //value is treated as CaseInsensitive for capitalisation purposes
@@ -28,3 +31,9 @@
 //if, when the end of both are reached, all characters along the way matched, then it's an
 //apostrophe variant
 
+
+//when lexing punctuation, convert "--" and standalone "-" into "—"
+//convert "!!+" into "‼"
+//"??+" into "⁇"
+//any chain of "?!" and "!?" into "⁈"
+//any sequence "..+" into "…"

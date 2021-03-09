@@ -7,8 +7,6 @@ import (
 
 var logger = loggo.GetLogger("logic")
 
-//used to denote the end of a sentence
-const sentenceBoundary = -2147483648 //int32 minimum; should constrain database sizing
 
 //the number of sibling-branches to consider for each node in depth-first
 //traversal
