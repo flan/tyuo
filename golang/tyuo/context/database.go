@@ -373,7 +373,7 @@ func (db *database) dictionaryGetTokensById(ids intSet) ([]DictionaryToken, erro
         return nil, err
     }
 }
-func (db *database) dictionarySetTokens(tokens []DictionaryToken, rescaleThreshold int,  rescaleDeciminator int) (error) {
+func (db *database) dictionarySetTokens(tokens []DictionaryToken, rescaleThreshold int,  rescaleDecimator int) (error) {
     if len(tokens) == 0 {
         return nil
     }
@@ -395,7 +395,7 @@ func (db *database) dictionarySetTokens(tokens []DictionaryToken, rescaleThresho
         variantFormsJSON = ?4
     `); err == nil {
         for _, token := range tokens {
-            token.rescale(rescaleThreshold,  rescaleDeciminator)
+            token.rescale(rescaleThreshold,  rescaleDecimator)
             cfj := serialiseVariantFormsJSON(token.variantForms)
             
             if _, err = stmt.Exec(
@@ -526,7 +526,10 @@ func (db *database) bannedUnbanTokens(tokens []string) (error) {
 
 
 
-func (db *database) terminalsGetTerminals(ids intSet, oldestAllowedTime int64) (map[int]Terminal, error) {
+func (db *database) terminalsGetTerminals(
+    ids intSet,
+    oldestAllowedTime int64,
+) (map[int]Terminal, error) {
     if len(ids) == 0 {
         return make(map[int]Terminal, 0), nil
     }
@@ -654,7 +657,11 @@ func (db *database) terminalsSetStatus(terminals []*Terminal) (error) {
 }
 //this provides starting-point candidates for doing a forward- or reverse-
 //random-walk, in the event that a keyword-oriented walk fails.
-func (db *database) terminalsGetStarters(count int, forward bool, oldestAllowedTime int64) ([]int, error) {
+func (db *database) terminalsGetStarters(
+    count int,
+    forward bool,
+    oldestAllowedTime int64,
+) ([]int, error) {
     if count <= 0 {
         return make([]int, 0), nil
     }
@@ -760,7 +767,11 @@ func ngramsGetDirectionString(forward bool) (string) {
 }
 
 
-func (db *database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAllowedTime int64) (map[DigramSpec]Digram, error) {
+func (db *database) digramsGet(
+    specs map[DigramSpec]bool,
+    forward bool,
+    oldestAllowedTime int64,
+) (map[DigramSpec]Digram, error) {
     if len(specs) == 0 {
         return make(map[DigramSpec]Digram, 0), nil
     }
@@ -778,18 +789,18 @@ func (db *database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAl
         
         output := make(map[DigramSpec]Digram, len(specs))
         for spec := range specs {
-            var transitions Transitions
+            var transitions map[int]transitionSpec
             var transitionsJSONZLIB []byte
             row := stmt.QueryRow(spec.DictionaryIdFirst)
             if err := row.Scan(&transitionsJSONZLIB); err == nil {
-                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+                transitions = deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)
             } else if err == sql.ErrNoRows {
-                transitions = prepareTransitionsEmpty()
+                transitions = make(map[int]transitionSpec)
             } else {
                 return nil, err
             }
             output[spec] = Digram{
-                Transitions: transitions,
+                transitions: transitions,
                 
                 dictionaryIdFirst: spec.DictionaryIdFirst,
             }
@@ -799,7 +810,12 @@ func (db *database) digramsGet(specs map[DigramSpec]bool, forward bool, oldestAl
         return nil, err
     }
 }
-func (db *database) digramsSet(digrams []Digram, forward bool) (error) {
+func (db *database) digramsSet(
+    digrams map[DigramSpec]Digram,
+    forward bool,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
     if len(digrams) == 0 {
         return nil
     }
@@ -818,7 +834,9 @@ func (db *database) digramsSet(digrams []Digram, forward bool) (error) {
         transitionsJSONZLIB = ?2
     `, ngramsGetDirectionString(forward))); err == nil {
         for _, digram := range digrams {
-            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(digram.Transitions.transitions)
+            digram.rescale(rescaleThreshold,  rescaleDecimator)
+            
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(digram.transitions)
             if _, err = stmt.Exec(
                 digram.dictionaryIdFirst,
                 transitionsJSONZLIB,
@@ -843,7 +861,11 @@ func (db *database) digramsSet(digrams []Digram, forward bool) (error) {
 }
 
 
-func (db *database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldestAllowedTime int64) (map[TrigramSpec]Trigram, error) {
+func (db *database) trigramsGet(
+    specs map[TrigramSpec]bool,
+    forward bool,
+    oldestAllowedTime int64,
+) (map[TrigramSpec]Trigram, error) {
     if len(specs) == 0 {
         return make(map[TrigramSpec]Trigram, 0), nil
     }
@@ -862,18 +884,18 @@ func (db *database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldest
         
         output := make(map[TrigramSpec]Trigram, len(specs))
         for spec := range specs {
-            var transitions Transitions
+            var transitions map[int]transitionSpec
             var transitionsJSONZLIB []byte
             row := stmt.QueryRow(spec.DictionaryIdFirst, spec.DictionaryIdSecond)
             if err := row.Scan(&transitionsJSONZLIB); err == nil {
-                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+                transitions = deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)
             } else if err == sql.ErrNoRows {
-                transitions = prepareTransitionsEmpty()
+                transitions = make(map[int]transitionSpec)
             } else {
                 return nil, err
             }
             output[spec] = Trigram{
-                Transitions: transitions,
+                transitions: transitions,
                 
                 dictionaryIdFirst: spec.DictionaryIdFirst,
                 dictionaryIdSecond: spec.DictionaryIdSecond,
@@ -884,7 +906,12 @@ func (db *database) trigramsGet(specs map[TrigramSpec]bool, forward bool, oldest
         return nil, err
     }
 }
-func (db *database) trigramsSet(trigrams []Trigram, forward bool) (error) {
+func (db *database) trigramsSet(
+    trigrams map[TrigramSpec]Trigram,
+    forward bool,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
     if len(trigrams) == 0 {
         return nil
     }
@@ -904,7 +931,9 @@ func (db *database) trigramsSet(trigrams []Trigram, forward bool) (error) {
         transitionsJSONZLIB = ?3
     `, ngramsGetDirectionString(forward))); err == nil {
         for _, trigram := range trigrams {
-            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(trigram.Transitions.transitions)
+            trigram.rescale(rescaleThreshold,  rescaleDecimator)
+            
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(trigram.transitions)
             if _, err = stmt.Exec(
                 trigram.dictionaryIdFirst,
                 trigram.dictionaryIdSecond,
@@ -928,7 +957,12 @@ func (db *database) trigramsSet(trigrams []Trigram, forward bool) (error) {
     }
     return tx.Commit()
 }
-func (db *database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Trigram, error) {
+func (db *database) trigramsGetOnlyFirst(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+    oldestAllowedTime int64,
+) ([]Trigram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
         dictionaryIdSecond,
@@ -948,7 +982,7 @@ func (db *database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forwa
             var transitionsJSONZLIB []byte
             if err:= rows.Scan(&dictionaryIdSecond, &transitionsJSONZLIB); err == nil {
                 output = append(output, Trigram{
-                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
                     
                     dictionaryIdFirst: dictionaryIdFirst,
                     dictionaryIdSecond: dictionaryIdSecond,
@@ -964,7 +998,11 @@ func (db *database) trigramsGetOnlyFirst(dictionaryIdFirst int, count int, forwa
 }
 
 
-func (db *database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuadgramSpec]Quadgram, error) {
+func (db *database) quadgramsGet(
+    specs map[QuadgramSpec]bool,
+    forward bool,
+    oldestAllowedTime int64,
+) (map[QuadgramSpec]Quadgram, error) {
     if len(specs) == 0 {
         return make(map[QuadgramSpec]Quadgram, 0), nil
     }
@@ -984,18 +1022,18 @@ func (db *database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, olde
         
         output := make(map[QuadgramSpec]Quadgram, len(specs))
         for spec := range specs {
-            var transitions Transitions
+            var transitions map[int]transitionSpec
             var transitionsJSONZLIB []byte
             row := stmt.QueryRow(spec.DictionaryIdFirst, spec.DictionaryIdSecond, spec.DictionaryIdThird)
             if err := row.Scan(&transitionsJSONZLIB); err == nil {
-                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+                transitions = deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)
             } else if err == sql.ErrNoRows {
-                transitions = prepareTransitionsEmpty()
+                transitions = make(map[int]transitionSpec)
             } else {
                 return nil, err
             }
             output[spec] = Quadgram{
-                Transitions: transitions,
+                transitions: transitions,
                 
                 dictionaryIdFirst: spec.DictionaryIdFirst,
                 dictionaryIdSecond: spec.DictionaryIdSecond,
@@ -1007,7 +1045,12 @@ func (db *database) quadgramsGet(specs map[QuadgramSpec]bool, forward bool, olde
         return nil, err
     }
 }
-func (db *database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
+func (db *database) quadgramsSet(
+    quadgrams map[QuadgramSpec]Quadgram,
+    forward bool,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
     if len(quadgrams) == 0 {
         return nil
     }
@@ -1028,7 +1071,9 @@ func (db *database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
         transitionsJSONZLIB = ?4
     `, ngramsGetDirectionString(forward))); err == nil {
         for _, quadgram := range quadgrams {
-            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(quadgram.Transitions.transitions)
+            quadgram.rescale(rescaleThreshold,  rescaleDecimator)
+            
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(quadgram.transitions)
             if _, err = stmt.Exec(
                 quadgram.dictionaryIdFirst,
                 quadgram.dictionaryIdSecond,
@@ -1053,7 +1098,12 @@ func (db *database) quadgramsSet(quadgrams []Quadgram, forward bool) (error) {
     }
     return tx.Commit()
 }
-func (db *database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quadgram, error) {
+func (db *database) quadgramsGetOnlyFirst(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+    oldestAllowedTime int64,
+) ([]Quadgram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
         dictionaryIdSecond,
@@ -1075,7 +1125,7 @@ func (db *database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forw
             var transitionsJSONZLIB []byte
             if err:= rows.Scan(&dictionaryIdSecond, &dictionaryIdThird, &transitionsJSONZLIB); err == nil {
                 output = append(output, Quadgram{
-                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
                     
                     dictionaryIdFirst: dictionaryIdFirst,
                     dictionaryIdSecond: dictionaryIdSecond,
@@ -1092,7 +1142,11 @@ func (db *database) quadgramsGetOnlyFirst(dictionaryIdFirst int, count int, forw
 }
 
 
-func (db *database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, oldestAllowedTime int64) (map[QuintgramSpec]Quintgram, error) {
+func (db *database) quintgramsGet(
+    specs map[QuintgramSpec]bool,
+    forward bool,
+    oldestAllowedTime int64,
+) (map[QuintgramSpec]Quintgram, error) {
     if len(specs) == 0 {
         return make(map[QuintgramSpec]Quintgram, 0), nil
     }
@@ -1113,18 +1167,18 @@ func (db *database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, ol
         
         output := make(map[QuintgramSpec]Quintgram, len(specs))
         for spec := range specs {
-            var transitions Transitions
+            var transitions map[int]transitionSpec
             var transitionsJSONZLIB []byte
             row := stmt.QueryRow(spec.DictionaryIdFirst, spec.DictionaryIdSecond, spec.DictionaryIdThird, spec.DictionaryIdFourth)
             if err := row.Scan(&transitionsJSONZLIB); err == nil {
-                transitions = prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime))
+                transitions = deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)
             } else if err == sql.ErrNoRows {
-                transitions = prepareTransitionsEmpty()
+                transitions = make(map[int]transitionSpec)
             } else {
                 return nil, err
             }
             output[spec] = Quintgram{
-                Transitions: transitions,
+                transitions: transitions,
                 
                 dictionaryIdFirst: spec.DictionaryIdFirst,
                 dictionaryIdSecond: spec.DictionaryIdSecond,
@@ -1137,7 +1191,12 @@ func (db *database) quintgramsGet(specs map[QuintgramSpec]bool, forward bool, ol
         return nil, err
     }
 }
-func (db *database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) {
+func (db *database) quintgramsSet(
+    quintgrams map[QuintgramSpec]Quintgram,
+    forward bool,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
     if len(quintgrams) == 0 {
         return nil
     }
@@ -1159,7 +1218,9 @@ func (db *database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) 
         transitionsJSONZLIB = ?5
     `, ngramsGetDirectionString(forward))); err == nil {
         for _, quintgram := range quintgrams {
-            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(quintgram.Transitions.transitions)
+            quintgram.rescale(rescaleThreshold,  rescaleDecimator)
+            
+            transitionsJSONZLIB := serialiseTransitionsJSONZLIB(quintgram.transitions)
             if _, err = stmt.Exec(
                 quintgram.dictionaryIdFirst,
                 quintgram.dictionaryIdSecond,
@@ -1185,7 +1246,12 @@ func (db *database) quintgramsSet(quintgrams []Quintgram, forward bool) (error) 
     }
     return tx.Commit()
 }
-func (db *database) quintgramsGetOnlyFirst(dictionaryIdFirst int, count int, forward bool, oldestAllowedTime int64) ([]Quintgram, error) {
+func (db *database) quintgramsGetOnlyFirst(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+    oldestAllowedTime int64,
+) ([]Quintgram, error) {
     if rows, err := db.connection.Query(fmt.Sprintf(`
     SELECT
         dictionaryIdSecond,
@@ -1209,7 +1275,7 @@ func (db *database) quintgramsGetOnlyFirst(dictionaryIdFirst int, count int, for
             var transitionsJSONZLIB []byte
             if err:= rows.Scan(&dictionaryIdSecond, &dictionaryIdThird, &dictionaryIdFourth, &transitionsJSONZLIB); err == nil {
                 output = append(output, Quintgram{
-                    Transitions: prepareTransitions(deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime)),
+                    transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
                     
                     dictionaryIdFirst: dictionaryIdFirst,
                     dictionaryIdSecond: dictionaryIdSecond,

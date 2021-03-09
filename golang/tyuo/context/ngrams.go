@@ -40,43 +40,30 @@ type transitionSpec struct {
     occurrences int
     lastObserved int64
 }
-type Transitions struct {
-    transitions map[int]transitionSpec
-}
-func prepareTransitions(transitions map[int]transitionSpec) (Transitions) {
-    return Transitions{
-        transitions: transitions,
-    }
-}
-func prepareTransitionsEmpty() (Transitions) {
-    return prepareTransitions(make(map[int]transitionSpec, 1))
-}
-//TODO: should this actually be public? Learning can all happen in-context, and then
-//this can just be part of that flow, instead of being a method; see dictionary
-//public function to increment/define transitions
-func (t *Transitions) Increment(dictionaryId int) {
-    ts, _ := t.transitions[dictionaryId] //the nil case for ts will set occurrents to 0
-    t.transitions[dictionaryId] = transitionSpec{
+
+func transitionsIncrement(m map[int]transitionSpec, dictionaryId int) {
+    ts, _ := m[dictionaryId] //the nil case for ts will set occurrents to 0
+    m[dictionaryId] = transitionSpec{
         occurrences: ts.occurrences + 1,
         lastObserved: time.Now().Unix(),
     }
 }
 //called before writing the value to the database
-func (t *Transitions) rescale(rescaleThreshold int,  rescaleDeciminator int) {
+func transitionsRescale(m map[int]transitionSpec, rescaleThreshold int,  rescaleDecimator int) {
     rescaleNeeded := false
-    for _, ts := range t.transitions {
+    for _, ts := range m {
         if ts.occurrences > rescaleThreshold {
             rescaleNeeded = true
             break
         }
     }
     if rescaleNeeded {
-        for did, ts := range t.transitions {
-            ts.occurrences /= rescaleDeciminator
+        for did, ts := range m {
+            ts.occurrences /= rescaleDecimator
             if ts.occurrences > 0 {
-                t.transitions[did] = ts //it's a copy
+                m[did] = ts //it's a copy
             } else {
-                delete(t.transitions, did)
+                delete(m, did)
             }
         }
     }
@@ -86,20 +73,33 @@ type DigramSpec struct {
     DictionaryIdFirst int
 }
 type Digram struct {
-    Transitions
+    transitions map[int]transitionSpec
     
     dictionaryIdFirst int
 }
+func (g *Digram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+    transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
+}
+func (g *Digram) increment(dictionaryId int) {
+    transitionsIncrement(g.transitions, dictionaryId) 
+}
+
 
 type TrigramSpec struct {
     DictionaryIdFirst int
     DictionaryIdSecond int
 }
 type Trigram struct {
-    Transitions
+    transitions map[int]transitionSpec
     
     dictionaryIdFirst int
     dictionaryIdSecond int
+}
+func (g *Trigram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+    transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
+}
+func (g *Trigram) increment(dictionaryId int) {
+    transitionsIncrement(g.transitions, dictionaryId) 
 }
 
 type QuadgramSpec struct {
@@ -108,11 +108,17 @@ type QuadgramSpec struct {
     DictionaryIdThird int
 }
 type Quadgram struct {
-    Transitions
+    transitions map[int]transitionSpec
     
     dictionaryIdFirst int
     dictionaryIdSecond int
     dictionaryIdThird int
+}
+func (g *Quadgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+    transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
+}
+func (g *Quadgram) increment(dictionaryId int) {
+    transitionsIncrement(g.transitions, dictionaryId) 
 }
 
 type QuintgramSpec struct {
@@ -122,10 +128,113 @@ type QuintgramSpec struct {
     DictionaryIdFourth int
 }
 type Quintgram struct {
-    Transitions
+    transitions map[int]transitionSpec
     
     dictionaryIdFirst int
     dictionaryIdSecond int
     dictionaryIdThird int
     dictionaryIdFourth int
+}
+func (g *Quintgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+    transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
+}
+func (g *Quintgram) increment(dictionaryId int) {
+    transitionsIncrement(g.transitions, dictionaryId) 
+}
+
+
+
+
+func learnDigramsForward(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    specs := make(map[DigramSpec]bool, len(tokens))
+    for i := 0; i < len(tokens); i++ {
+        specs[DigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+        }] = false
+    }
+    
+    digrams, err := database.digramsGet(specs, true, oldestAllowedTime)
+    if err != nil {
+        return err
+    }
+    
+    for i := 0; i < len(tokens) - 1; i++ {
+        digram := digrams[DigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+        }]
+        digram.increment(tokensMap[tokens[i + 1]])
+    }
+    digram := digrams[DigramSpec{
+        DictionaryIdFirst: tokensMap[tokens[len(tokens) - 1]],
+    }]
+    digram.increment(BoundaryId)
+    
+    return database.digramsSet(digrams, true, rescaleThreshold, rescaleDecimator)
+}
+func learnDigramsReverse(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    specs := make(map[DigramSpec]bool, len(tokens))
+    for i := len(tokens) - 1; i >= 0; i-- {
+        specs[DigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+        }] = false
+    }
+    
+    digrams, err := database.digramsGet(specs, false, oldestAllowedTime)
+    if err != nil {
+        return err
+    }
+    
+    for i := len(tokens) - 1; i >= 1; i-- {
+        digram := digrams[DigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+        }]
+        digram.increment(tokensMap[tokens[i - 1]])
+    }
+    digram := digrams[DigramSpec{
+        DictionaryIdFirst: tokensMap[tokens[0]],
+    }]
+    digram.increment(BoundaryId)
+    
+    return database.digramsSet(digrams, false, rescaleThreshold, rescaleDecimator)
+}
+func learnDigrams(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    if err := learnDigramsForward(
+        database,
+        tokens,
+        tokensMap,
+        oldestAllowedTime,
+        rescaleThreshold,
+        rescaleDecimator,
+    ); err != nil {
+        return err
+    }
+    return learnDigramsReverse(
+        database,
+        tokens,
+        tokensMap,
+        oldestAllowedTime,
+        rescaleThreshold,
+        rescaleDecimator,
+    )
 }

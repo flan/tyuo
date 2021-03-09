@@ -53,7 +53,7 @@ type contextConfigLearning struct {
     RescaleThreshold int //should probably be 1000
     //the divisor for rescaling; this affects how frequently it happens
     //and how long rare entries hang around
-    RescaleDeciminator int //should probably be 3
+    RescaleDecimator int //should probably be 3
 }
 
 type contextConfigProduction struct {
@@ -193,6 +193,65 @@ func (c *Context) IsAllowed(s string) (bool) {
 func (c *Context) GetIdBannedStatus(ids []int) (map[int]bool) {
     return c.bannedDictionary.getIdBannedStatus(intSliceToSet(ids))
 }
+
+
+
+func (c *Context) LearnInput(tokens []ParsedToken) (error) {
+    if len(tokens) == 0 {
+        return nil
+    }
+    
+    rescaleThreshold := c.config.Learning.RescaleThreshold
+    rescaleDecimator := c.config.Learning.RescaleDecimator
+    
+    //first, update the dictionary to make sure all tokens have an ID
+    dictionaryTokens, err := c.dictionary.learnTokens(
+        tokens,
+        rescaleThreshold,
+        rescaleDecimator,
+    )
+    if err != nil {
+        return err
+    }
+    
+    tokensMap := make(map[string]int, len(dictionaryTokens))
+    for _, dt := range dictionaryTokens {
+        tokensMap[dt.baseRepresentation] = dt.id
+    }
+    baseTokens := make([]string, len(tokens))
+    for i, token := range tokens {
+        baseTokens[i] = token.Base
+    }
+    
+    oldestAllowedTime := c.getOldestAllowedTime()
+    
+    if c.AreDigramsEnabled() {
+        if err = learnDigrams(
+            c.database,
+            baseTokens,
+            tokensMap,
+            oldestAllowedTime,
+            rescaleThreshold,
+            rescaleDecimator,
+        ); err != nil {
+            return err
+        }
+    }
+    if c.AreTrigramsEnabled() && len(tokens) > 1 {
+        //learn trigrams, using tokens and tokensMap
+    }
+    if c.AreQuadgramsEnabled() && len(tokens) > 2 {
+        //learn quadgrams, using tokens and tokensMap
+    }
+    if c.AreQuintgramsEnabled()  && len(tokens) > 3 {
+        //learn quintgrams, using tokens and tokensMap
+    }
+    
+    return nil
+}
+
+
+
 
 
 type ContextManager struct {

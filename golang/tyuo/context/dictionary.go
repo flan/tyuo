@@ -35,7 +35,7 @@ func (dt *DictionaryToken) Represent(baseRepresentationThreshold float32) (strin
         return mostRepresented, false
     }
 }
-func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDeciminator int) {
+func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDecimator int) {
     rescaleNeeded := false
     for _, count := range dt.variantForms{
         if count > rescaleThreshold {
@@ -45,7 +45,7 @@ func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDeciminator int
     }
     if rescaleNeeded {
         for variant, count := range dt.variantForms {
-            count /= rescaleDeciminator
+            count /= rescaleDecimator
             if count > 0 {
                 dt.variantForms[variant] = count
             } else {
@@ -95,7 +95,7 @@ func (d *dictionary) getSliceById(ids intSet) (map[int]DictionaryToken, error) {
     return dictionarySlice, nil
 }
 
-func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  rescaleDeciminator int) (error) {
+func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  rescaleDecimator int) ([]DictionaryToken, error) {
     //get any existing entries from the database
     tokenSet := make(stringSet, len(tokens))
     for _, token := range tokens {
@@ -103,7 +103,7 @@ func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  re
     }
     dictionarySlice, err := d.getSliceByToken(tokenSet)
     if err != nil {
-        return err
+        return make([]DictionaryToken, 0), err
     }
     
     //update the slice with changes
@@ -134,5 +134,5 @@ func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  re
     for _, dt := range dictionarySlice {
         newTokens = append(newTokens, dt)
     }
-    return d.database.dictionarySetTokens(newTokens, rescaleThreshold,  rescaleDeciminator)
+    return newTokens, d.database.dictionarySetTokens(newTokens, rescaleThreshold, rescaleDecimator)
 }
