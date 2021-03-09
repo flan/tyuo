@@ -55,7 +55,7 @@ func prepareTransitionsEmpty() (Transitions) {
 //this can just be part of that flow, instead of being a method; see dictionary
 //public function to increment/define transitions
 func (t *Transitions) Increment(dictionaryId int) {
-    ts, _ = t.transitions[dictionaryId] //the nil case for ts will set occurrents to 0
+    ts, _ := t.transitions[dictionaryId] //the nil case for ts will set occurrents to 0
     t.transitions[dictionaryId] = transitionSpec{
         occurrences: ts.occurrences + 1,
         lastObserved: time.Now().Unix(),
@@ -63,7 +63,7 @@ func (t *Transitions) Increment(dictionaryId int) {
 }
 //called before writing the value to the database
 func (t *Transitions) rescale(rescaleThreshold int,  rescaleDeciminator int) {
-    recaleNeeded := false
+    rescaleNeeded := false
     for _, ts := range t.transitions {
         if ts.occurrences > rescaleThreshold {
             rescaleNeeded = true

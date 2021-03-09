@@ -14,7 +14,7 @@ func (dt *DictionaryToken) GetId() (int) {
     //the returned value is a ParsedToken where CaseSensitive is what's expected to be used
     //except where language rules have special handling -- see below.
 func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDeciminator int) {
-    recaleNeeded := false
+    rescaleNeeded := false
     for _, count := range dt.variantForms{
         if count > rescaleThreshold {
             rescaleNeeded = true
@@ -58,24 +58,24 @@ func prepareDictionary(database *database) (*dictionary, error) {
 func (d *dictionary) getSliceByToken(tokens stringSet) (map[string]DictionaryToken, error) {
     dictionaryTokens, err := d.database.dictionaryGetTokensByToken(tokens)
     if err != nil {
-        return err
+        return nil, err
     }
     dictionarySlice := make(map[string]DictionaryToken, len(dictionaryTokens))
-    for _, dt := dictionaryTokens {
+    for _, dt := range dictionaryTokens {
         dictionarySlice[dt.baseRepresentation] = dt
     }
-    return dictionarySlice
+    return dictionarySlice, nil
 }
 func (d *dictionary) getSliceById(ids intSet) (map[int]DictionaryToken, error) {
-    dictionaryTokens, err := d.database.dictionaryGetTokensByToken(ids)
+    dictionaryTokens, err := d.database.dictionaryGetTokensById(ids)
     if err != nil {
-        return err
+        return nil, err
     }
     dictionarySlice := make(map[int]DictionaryToken, len(dictionaryTokens))
-    for _, dt := dictionaryTokens {
+    for _, dt := range dictionaryTokens {
         dictionarySlice[dt.id] = dt
     }
-    return dictionarySlice
+    return dictionarySlice, nil
 }
 
 func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  rescaleDeciminator int) (error) {
@@ -93,8 +93,9 @@ func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  re
     for _, token := range tokens {
         dt, defined := dictionarySlice[token.Base]
         if !defined {
+            d.nextIdentifier++
             dt = DictionaryToken{
-                id: d.nextIdentifier++,
+                id: d.nextIdentifier,
                 baseOccurrences: 0,
                 baseRepresentation: token.Base,
                 variantForms: make(map[string]int),

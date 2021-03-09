@@ -319,7 +319,7 @@ func processDictionaryRows(maxCount int, rows *sql.Rows) ([]DictionaryToken, err
 }
 func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]DictionaryToken, error) {
     if len(tokens) == 0 {
-        return make([]dictionaryToken, 0), nil
+        return make([]DictionaryToken, 0), nil
     }
     
     query := fmt.Sprintf(`
@@ -347,7 +347,7 @@ func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]DictionaryTo
 }
 func (db *database) dictionaryGetTokensById(ids intSet) ([]DictionaryToken, error) {
     if len(ids) == 0 {
-        return make([]dictionaryToken, 0), nil
+        return make([]DictionaryToken, 0), nil
     }
     
     query := fmt.Sprintf(`
