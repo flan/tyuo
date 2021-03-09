@@ -209,6 +209,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
         tokens,
         rescaleThreshold,
         rescaleDecimator,
+        //TODO: include punctuation map to avoid learning those entries
     )
     if err != nil {
         return err
@@ -223,9 +224,15 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
         baseTokens[i] = token.Base
     }
     
-    oldestAllowedTime := c.getOldestAllowedTime()
+    if err = learnTerminals(
+        c.database,
+        tokensMap[baseTokens[0]],
+        tokensMap[baseTokens[len(baseTokens) - 1]],
+    ); err != nil {
+        return err
+    }
     
-    //TODO: learn terminals, baseTokens[0], baseTokens[len(baseTokens) - 1]
+    oldestAllowedTime := c.getOldestAllowedTime()
     
     if c.AreDigramsEnabled() {
         if err = learnDigrams(
@@ -240,13 +247,40 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
         }
     }
     if c.AreTrigramsEnabled() && len(tokens) > 1 {
-        //learn trigrams, using tokens and tokensMap
+        if err = learnTrigrams(
+            c.database,
+            baseTokens,
+            tokensMap,
+            oldestAllowedTime,
+            rescaleThreshold,
+            rescaleDecimator,
+        ); err != nil {
+            return err
+        }
     }
     if c.AreQuadgramsEnabled() && len(tokens) > 2 {
-        //learn quadgrams, using tokens and tokensMap
+        if err = learnQuadgrams(
+            c.database,
+            baseTokens,
+            tokensMap,
+            oldestAllowedTime,
+            rescaleThreshold,
+            rescaleDecimator,
+        ); err != nil {
+            return err
+        }
     }
     if c.AreQuintgramsEnabled()  && len(tokens) > 3 {
-        //learn quintgrams, using tokens and tokensMap
+        if err = learnQuintgrams(
+            c.database,
+            baseTokens,
+            tokensMap,
+            oldestAllowedTime,
+            rescaleThreshold,
+            rescaleDecimator,
+        ); err != nil {
+            return err
+        }
     }
     
     return nil

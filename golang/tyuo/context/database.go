@@ -585,7 +585,7 @@ func (db *database) terminalsGetTerminals(
         return nil, err
     }
 }
-func (db *database) terminalsSetStatus(terminals []*Terminal) (error) {
+func (db *database) terminalsSetStatus(terminals []Terminal) (error) {
     if len(terminals) == 0 {
         return nil
     }

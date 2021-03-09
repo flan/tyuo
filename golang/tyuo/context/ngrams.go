@@ -145,6 +145,28 @@ func (g *Quintgram) increment(dictionaryId int) {
 
 
 
+func learnTerminals(
+    database *database,
+    forwardId int,
+    reverseId int,
+) (error) {
+    return database.terminalsSetStatus([]Terminal{
+        Terminal{
+            dictionaryId: forwardId,
+            Forward: true,
+            Reverse: false,
+        },
+        Terminal{
+            dictionaryId: reverseId,
+            Forward: false,
+            Reverse: true,
+        },
+    })
+}
+
+
+
+
 func learnDigramsForward(
     database *database,
     tokens []string,
