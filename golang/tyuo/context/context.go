@@ -225,6 +225,8 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     
     oldestAllowedTime := c.getOldestAllowedTime()
     
+    //TODO: learn terminals, baseTokens[0], baseTokens[len(baseTokens) - 1]
+    
     if c.AreDigramsEnabled() {
         if err = learnDigrams(
             c.database,

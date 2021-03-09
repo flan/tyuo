@@ -219,6 +219,10 @@ func learnDigrams(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
+    if len(tokens) < 1 {
+        return nil
+    }
+    
     if err := learnDigramsForward(
         database,
         tokens,
@@ -230,6 +234,113 @@ func learnDigrams(
         return err
     }
     return learnDigramsReverse(
+        database,
+        tokens,
+        tokensMap,
+        oldestAllowedTime,
+        rescaleThreshold,
+        rescaleDecimator,
+    )
+}
+
+
+
+
+func learnTrigramsForward(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    specs := make(map[TrigramSpec]bool, len(tokens))
+    for i := 0; i < len(tokens) - 1; i++ {
+        specs[TrigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i + 1]],
+        }] = false
+    }
+    
+    trigrams, err := database.trigramsGet(specs, true, oldestAllowedTime)
+    if err != nil {
+        return err
+    }
+    
+    for i := 0; i < len(tokens) - 2; i++ {
+        trigram := trigrams[TrigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i + 1]],
+        }]
+        trigram.increment(tokensMap[tokens[i + 2]])
+    }
+    trigram := trigrams[TrigramSpec{
+        DictionaryIdFirst: tokensMap[tokens[len(tokens) - 2]],
+        DictionaryIdSecond: tokensMap[tokens[len(tokens) - 1]],
+    }]
+    trigram.increment(BoundaryId)
+    
+    return database.trigramsSet(trigrams, true, rescaleThreshold, rescaleDecimator)
+}
+func learnTrigramsReverse(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    specs := make(map[TrigramSpec]bool, len(tokens))
+    for i := len(tokens) - 1; i >= 1; i-- {
+        specs[TrigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i - 1]],
+        }] = false
+    }
+    
+    trigrams, err := database.trigramsGet(specs, false, oldestAllowedTime)
+    if err != nil {
+        return err
+    }
+    
+    for i := len(tokens) - 1; i >= 2; i-- {
+        trigram := trigrams[TrigramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i - 1]],
+        }]
+        trigram.increment(tokensMap[tokens[i - 2]])
+    }
+    trigram := trigrams[TrigramSpec{
+        DictionaryIdFirst: tokensMap[tokens[1]],
+        DictionaryIdSecond: tokensMap[tokens[0]],
+    }]
+    trigram.increment(BoundaryId)
+    
+    return database.trigramsSet(trigrams, false, rescaleThreshold, rescaleDecimator)
+}
+func learnTrigrams(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    if len(tokens) < 2 {
+        return nil
+    }
+    
+    if err := learnTrigramsForward(
+        database,
+        tokens,
+        tokensMap,
+        oldestAllowedTime,
+        rescaleThreshold,
+        rescaleDecimator,
+    ); err != nil {
+        return err
+    }
+    return learnTrigramsReverse(
         database,
         tokens,
         tokensMap,
