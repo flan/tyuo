@@ -1,5 +1,11 @@
 package context
 
+type ParsedToken struct {
+    Base string
+    Variant string
+}
+
+
 type DictionaryToken struct {
     id int
     baseOccurrences int
@@ -9,10 +15,26 @@ type DictionaryToken struct {
 func (dt *DictionaryToken) GetId() (int) {
     return dt.id
 }
-//has a function to return the most appropriate representation
-    //this function takes the representation threshold as an argument
-    //the returned value is a ParsedToken where CaseSensitive is what's expected to be used
-    //except where language rules have special handling -- see below.
+func (dt *DictionaryToken) Represent(baseRepresentationThreshold float32) (string, bool) {
+    sum := float32(dt.baseOccurrences)
+    for _, count := range dt.variantForms {
+        sum += count
+    }
+    
+    if dt.baseOccurrences / sum > baseRepresentationThreshold {
+        return dt.baseRepresentation, true
+    } else {
+        var mostRepresented string
+        var mostRepresentedCount int = 0
+        for representation, count := range dt.variantForms {
+            if count > mostRepresentedCount {
+                mostRepresentedCount = count
+                mostRepresented = representation
+            }
+        }
+        return mostRepresented, false
+    }
+}
 func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDeciminator int) {
     rescaleNeeded := false
     for _, count := range dt.variantForms{
@@ -31,11 +53,6 @@ func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDeciminator int
             }
         }
     }
-}
-
-type ParsedToken struct {
-    Base string
-    Variant string
 }
 
 type dictionary struct {

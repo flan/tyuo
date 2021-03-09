@@ -79,9 +79,9 @@ type contextConfigProduction struct {
     TargetStopProbability float32
     //NOTE: for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
     
-    //the percentage of a token's representation that need to be
-    //made up of non-base forms before a non-base form will be selected
-    BaseRepresentationThreshold float32
+    //if a token is represented in its base form at least this often,
+    //choose that; otherwise, choose the most popular variant
+    BaseRepresentationThreshold float32 //0.9 is a good starting point
 }
 
 type contextConfig struct {

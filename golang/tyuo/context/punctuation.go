@@ -4,7 +4,7 @@ type punctuationSpec struct {
     id int
     token string
 }
-//CAUTION: do not alter any previously defined symbols or their IDs
+//CAUTION: do not alter any previously defined symbols or their IDs;
 //only ever add to this list
 punctuation := []punctuationSpec{
     punctuationSpec{
@@ -59,8 +59,9 @@ punctuation := []punctuationSpec{
         token: "&",
         id: undefinedDictionaryId - reservedIdsPunctuation  + 12,
     },
-}
+} //there's an upper limit of `reservedIdsPunctuation` elements on this structure
 
+//maybe these could be private, made part of Context when specifying a language
 func GetPunctuationByToken(tokens []string) (map[string]int) {
     output := make(map[string]int, len(tokens))
     for _, ps := range punctuation {
