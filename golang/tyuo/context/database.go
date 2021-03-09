@@ -297,15 +297,15 @@ func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[s
         return nil, err
     }
 }
-func processDictionaryRows(maxCount int, rows *sql.Rows) ([]dictionaryToken, error) {
-    output := make([]dictionaryToken, 0, maxCount)
+func processDictionaryRows(maxCount int, rows *sql.Rows) ([]DictionaryToken, error) {
+    output := make([]DictionaryToken, 0, maxCount)
     for rows.Next() {
         var cir string
         var did int
         var cio int
         var cfj sql.NullString
         if err:= rows.Scan(&cir, &did, &cio, &cfj); err == nil {
-            output = append(output, dictionaryToken{
+            output = append(output, DictionaryToken{
                 id: did,
                 baseRepresentation: cir,
                 baseOccurrences: cio,
@@ -317,7 +317,7 @@ func processDictionaryRows(maxCount int, rows *sql.Rows) ([]dictionaryToken, err
     }
     return output, nil
 }
-func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]dictionaryToken, error) {
+func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]DictionaryToken, error) {
     if len(tokens) == 0 {
         return make([]dictionaryToken, 0), nil
     }
@@ -345,7 +345,7 @@ func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]dictionaryTo
         return nil, err
     }
 }
-func (db *database) dictionaryGetTokensById(ids intSet) ([]dictionaryToken, error) {
+func (db *database) dictionaryGetTokensById(ids intSet) ([]DictionaryToken, error) {
     if len(ids) == 0 {
         return make([]dictionaryToken, 0), nil
     }
@@ -373,7 +373,7 @@ func (db *database) dictionaryGetTokensById(ids intSet) ([]dictionaryToken, erro
         return nil, err
     }
 }
-func (db *database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
+func (db *database) dictionarySetTokens(tokens []DictionaryToken, rescaleThreshold int,  rescaleDeciminator int) (error) {
     if len(tokens) == 0 {
         return nil
     }
@@ -395,6 +395,7 @@ func (db *database) dictionarySetTokens(tokens []*dictionaryToken) (error) {
         variantFormsJSON = ?4
     `); err == nil {
         for _, token := range tokens {
+            token.rescale(rescaleThreshold,  rescaleDeciminator)
             cfj := serialiseVariantFormsJSON(token.variantForms)
             
             if _, err = stmt.Exec(

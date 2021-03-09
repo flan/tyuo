@@ -1,44 +1,120 @@
 package context
 
-type dictionaryToken struct {
+type DictionaryToken struct {
     id int
     baseOccurrences int
     baseRepresentation string
     variantForms map[string]int
 }
+func (dt *DictionaryToken) GetId() (int) {
+    return dt.id
+}
 //has a function to return the most appropriate representation
     //this function takes the representation threshold as an argument
     //the returned value is a ParsedToken where CaseSensitive is what's expected to be used
     //except where language rules have special handling -- see below.
+func (dt *DictionaryToken) rescale(rescaleThreshold int,  rescaleDeciminator int) {
+    recaleNeeded := false
+    for _, count := range dt.variantForms{
+        if count > rescaleThreshold {
+            rescaleNeeded = true
+            break
+        }
+    }
+    if rescaleNeeded {
+        for variant, count := range dt.variantForms {
+            count /= rescaleDeciminator
+            if count > 0 {
+                dt.variantForms[variant] = count
+            } else {
+                delete(dt.variantForms, variant)
+            }
+        }
+    }
+}
 
 type ParsedToken struct {
-    CaseSensitive string
-    CaseInsensitive string
+    Base string
+    Variant string
 }
-//NOTE: when generating the case-insensitive form of a word, the language rules might
-//do something like say "if an apostrophe occurs in the middle of this token, its
-//case-insensitive form is apostrophe-less", while the with-apostrophe version is considered
-//capitalised
-//in English, this can probably just be a blanket conversion, with the exception of "it's"
-//this should catch "im", "didnt", "thats" and other such things, and eliminate incorrect
-//pluralised forms
-//when choosing how to present it, if the selected token is identical to its insensitive form
-//except for whatever delta the language-rules know how to process, then the CaseSensitive
-//value is treated as CaseInsensitive for capitalisation purposes
-//basic logic: step through both strings one character at a time, discarding apostrophes
-//if, when the end of both are reached, all characters along the way matched, then it's an
-//apostrophe variant
 
 type dictionary struct {
-    //database reference
+    database *database
     
-    //latest ID
-    //banned tokens
+    nextIdentifier int
 }
-func (d *dictionary) learnTokens(tokens []ParsedToken) (error) {
-    //queries the database for all existing insensitive forms, then updates the resulting dictionaryToken instances
-    //and creates new ones as needed, writing the result back to the database
-    return nil
+func prepareDictionary(database *database) (*dictionary, error) {
+    nextIdentifier, err := database.dictionaryGetNextIdentifier()
+    if err != nil {
+        return nil, err
+    }
+    
+    return &dictionary{
+        database: database,
+        
+        nextIdentifier: nextIdentifier,
+    }, nil
 }
-//has functions to take a slice of IDs or tokens and return a corresponding map of dictionaryTokens
-//(internally builds map[x]voids to speak with the database)
+func (d *dictionary) getSliceByToken(tokens stringSet) (map[string]DictionaryToken, error) {
+    dictionaryTokens, err := d.database.dictionaryGetTokensByToken(tokens)
+    if err != nil {
+        return err
+    }
+    dictionarySlice := make(map[string]DictionaryToken, len(dictionaryTokens))
+    for _, dt := dictionaryTokens {
+        dictionarySlice[dt.baseRepresentation] = dt
+    }
+    return dictionarySlice
+}
+func (d *dictionary) getSliceById(ids intSet) (map[int]DictionaryToken, error) {
+    dictionaryTokens, err := d.database.dictionaryGetTokensByToken(ids)
+    if err != nil {
+        return err
+    }
+    dictionarySlice := make(map[int]DictionaryToken, len(dictionaryTokens))
+    for _, dt := dictionaryTokens {
+        dictionarySlice[dt.id] = dt
+    }
+    return dictionarySlice
+}
+
+func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  rescaleDeciminator int) (error) {
+    //get any existing entries from the database
+    tokenSet := make(stringSet, len(tokens))
+    for _, token := range tokens {
+        tokenSet[token.Base] = false
+    }
+    dictionarySlice, err := d.getSliceByToken(tokenSet)
+    if err != nil {
+        return err
+    }
+    
+    //update the slice with changes
+    for _, token := range tokens {
+        dt, defined := dictionarySlice[token.Base]
+        if !defined {
+            dt = DictionaryToken{
+                id: d.nextIdentifier++,
+                baseOccurrences: 0,
+                baseRepresentation: token.Base,
+                variantForms: make(map[string]int),
+            }
+        }
+        
+        if token.Base == token.Variant {
+            dt.baseOccurrences += 1
+        } else {
+            count, _ := dt.variantForms[token.Variant] //default is 0, so it doesn't matter if it's undefined
+            dt.variantForms[token.Variant] = count + 1
+        }
+        
+        dictionarySlice[token.Base] = dt
+    }
+    
+    //update the database
+    newTokens := make([]DictionaryToken, 0, len(tokenSet))
+    for _, dt := range dictionarySlice {
+        newTokens = append(newTokens, dt)
+    }
+    return d.database.dictionarySetTokens(newTokens, rescaleThreshold,  rescaleDeciminator)
+}

@@ -53,7 +53,7 @@ type contextConfigLearning struct {
     RescaleThreshold int //should probably be 1000
     //the divisor for rescaling; this affects how frequently it happens
     //and how long rare entries hang around
-    RescaleDenominator int //should probably be 3
+    RescaleDeciminator int //should probably be 3
 }
 
 type contextConfigProduction struct {
@@ -148,7 +148,8 @@ type Context struct {
     config contextConfig
     
     database *database
-    bannedDictionary bannedDictionary
+    bannedDictionary *bannedDictionary
+    dictionary *dictionary
     
     //users of this struct are expected to respect this lock
     //learning is a writing flow; everything else is reading

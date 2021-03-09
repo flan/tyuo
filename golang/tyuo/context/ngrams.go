@@ -1,4 +1,8 @@
 package context
+import (
+    "time"
+)
+
 
 //NOTE for use in logic
 //when attempting to contruct a sentence, do a quadgram search first,
@@ -47,7 +51,36 @@ func prepareTransitions(transitions map[int]transitionSpec) (Transitions) {
 func prepareTransitionsEmpty() (Transitions) {
     return prepareTransitions(make(map[int]transitionSpec, 1))
 }
+//TODO: should this actually be public? Learning can all happen in-context, and then
+//this can just be part of that flow, instead of being a method; see dictionary
 //public function to increment/define transitions
+func (t *Transitions) Increment(dictionaryId int) {
+    ts, _ = t.transitions[dictionaryId] //the nil case for ts will set occurrents to 0
+    t.transitions[dictionaryId] = transitionSpec{
+        occurrences: ts.occurrences + 1,
+        lastObserved: time.Now().Unix(),
+    }
+}
+//called before writing the value to the database
+func (t *Transitions) rescale(rescaleThreshold int,  rescaleDeciminator int) {
+    recaleNeeded := false
+    for _, ts := range t.transitions {
+        if ts.occurrences > rescaleThreshold {
+            rescaleNeeded = true
+            break
+        }
+    }
+    if rescaleNeeded {
+        for did, ts := range t.transitions {
+            ts.occurrences /= rescaleDeciminator
+            if ts.occurrences > 0 {
+                t.transitions[did] = ts //it's a copy
+            } else {
+                delete(t.transitions, did)
+            }
+        }
+    }
+}
 
 type DigramSpec struct {
     DictionaryIdFirst int
