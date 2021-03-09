@@ -18,10 +18,10 @@ func (dt *DictionaryToken) GetId() (int) {
 func (dt *DictionaryToken) Represent(baseRepresentationThreshold float32) (string, bool) {
     sum := float32(dt.baseOccurrences)
     for _, count := range dt.variantForms {
-        sum += count
+        sum += float32(count)
     }
     
-    if dt.baseOccurrences / sum > baseRepresentationThreshold {
+    if float32(dt.baseOccurrences) / sum > baseRepresentationThreshold {
         return dt.baseRepresentation, true
     } else {
         var mostRepresented string

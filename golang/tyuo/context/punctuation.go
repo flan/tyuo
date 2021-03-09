@@ -6,7 +6,7 @@ type punctuationSpec struct {
 }
 //CAUTION: do not alter any previously defined symbols or their IDs;
 //only ever add to this list
-punctuation := []punctuationSpec{
+var punctuation = []punctuationSpec{
     punctuationSpec{
         token: ".",
         id: undefinedDictionaryId - reservedIdsPunctuation  + 0,
@@ -65,8 +65,10 @@ punctuation := []punctuationSpec{
 func GetPunctuationByToken(tokens []string) (map[string]int) {
     output := make(map[string]int, len(tokens))
     for _, ps := range punctuation {
-        for _, token := tokens {
-            output[ps.token] = ps.id
+        for _, token := range tokens {
+            if token == ps.token {
+                output[token] = ps.id
+            }
         }
     }
     return output
@@ -74,8 +76,10 @@ func GetPunctuationByToken(tokens []string) (map[string]int) {
 func GetPunctuationById(ids []int) (map[int]string) {
     output := make(map[int]string, len(ids))
     for _, ps := range punctuation {
-        for _, id := ids {
-            output[ps.id] = ps.string
+        for _, id := range ids {
+            if id == ps.id {
+                output[id] = ps.token
+            }
         }
     }
     return output
