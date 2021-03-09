@@ -9,78 +9,64 @@ type punctuationSpec struct {
 var punctuation = []punctuationSpec{
     punctuationSpec{
         token: ".",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 0,
+        id: -2147483647 + 0,
     },
     punctuationSpec{
         token: ",",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 1,
+        id: -2147483647 + 1,
     },
     punctuationSpec{
         token: "…", //for any chain of "..+"
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 2,
+        id: -2147483647 + 2,
     },
     punctuationSpec{
         token: "?",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 3,
+        id: -2147483647 + 3,
     },
     punctuationSpec{
         token: "!",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 4,
+        id: -2147483647 + 4,
     },
     punctuationSpec{
         token: ";",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 5,
+        id: -2147483647 + 5,
     },
     punctuationSpec{
         token: ":",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 6,
+        id: -2147483647 + 6,
     },
     punctuationSpec{
         token: "⁈", //for any mixed sequence of "?" and "!"
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 7,
+        id: -2147483647 + 7,
     },
     punctuationSpec{
         token: "‼", //for any chain of "!!+"
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 8,
+        id: -2147483647 + 8,
     },
     punctuationSpec{
         token: "⁇", //for any chain of "??+"
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 9,
+        id: -2147483647 + 9,
     },
     punctuationSpec{
         token: ".",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 10,
+        id: -2147483647 + 10,
     },
     punctuationSpec{
         token: "—",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 11,
+        id: -2147483647 + 11,
     },
     punctuationSpec{
         token: "&",
-        id: undefinedDictionaryId - reservedIdsPunctuation  + 12,
+        id: -2147483647 + 12,
     },
 } //there's an upper limit of `reservedIdsPunctuation` elements on this structure
 
-//maybe these could be private, made part of Context when specifying a language
-func GetPunctuationByToken(tokens []string) (map[string]int) {
-    output := make(map[string]int, len(tokens))
+//CAUTION: do not write code that alters these structures at runtime
+var PunctuationIdByToken map[string]int = make(map[string]int, len(punctuation))
+var PunctuationTokenById map[int]string = make(map[int]string, len(punctuation))
+func init() {
     for _, ps := range punctuation {
-        for _, token := range tokens {
-            if token == ps.token {
-                output[token] = ps.id
-            }
-        }
+        PunctuationIdsByToken[ps.token] = ps.id
+        PunctuationTokensById[ps.id] = ps.token
     }
-    return output
-}
-func GetPunctuationById(ids []int) (map[int]string) {
-    output := make(map[int]string, len(ids))
-    for _, ps := range punctuation {
-        for _, id := range ids {
-            if id == ps.id {
-                output[id] = ps.token
-            }
-        }
-    }
-    return output
 }

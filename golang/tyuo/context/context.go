@@ -44,6 +44,11 @@ type contextConfigLearning struct {
     //can accomodate the given length
     MinLength int
     
+    //the number of runes allowed within any single token,
+    //used to prevent over-hyphenated compounds that will only
+    //ever be seen a handful of times from cluttering the database
+    MaxTokenLength int
+    
     //how long to hold on to n-gram structures
     MaxAge int64
     
@@ -204,21 +209,35 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     rescaleThreshold := c.config.Learning.RescaleThreshold
     rescaleDecimator := c.config.Learning.RescaleDecimator
     
+    //strip punctuation so it doesn't get learned redundantly
+    depunctuatedTokens := make([]ParsedToken, 0, len(tokens))
+    for _, pt := range tokens {
+        if _, defined := PunctuationIdByToken[pt.Base]; !defined {
+            depunctuatedTokens = append(depunctuatedTokens, pt)
+        }
+    }
+    
     //first, update the dictionary to make sure all tokens have an ID
     dictionaryTokens, err := c.dictionary.learnTokens(
-        tokens,
+        depunctuatedTokens,
         rescaleThreshold,
         rescaleDecimator,
-        //TODO: include punctuation map to avoid learning those entries
     )
     if err != nil {
         return err
     }
+    //not needed anymore and this function is far from over
+    depunctuatedTokens = nil
     
-    tokensMap := make(map[string]int, len(dictionaryTokens))
+    tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdByToken))
     for _, dt := range dictionaryTokens {
         tokensMap[dt.baseRepresentation] = dt.id
     }
+    //put punctuation mappings in
+    for token, id := range PunctuationIdByToken {
+        tokensMap[token] = id
+    }
+    
     baseTokens := make([]string, len(tokens))
     for i, token := range tokens {
         baseTokens[i] = token.Base
@@ -233,7 +252,6 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     }
     
     oldestAllowedTime := c.getOldestAllowedTime()
-    
     if c.AreDigramsEnabled() {
         if err = learnDigrams(
             c.database,
