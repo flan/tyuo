@@ -349,3 +349,115 @@ func learnTrigrams(
         rescaleDecimator,
     )
 }
+
+
+
+func learnQuadgramsForward(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    specs := make(map[QuadgramSpec]bool, len(tokens))
+    for i := 0; i < len(tokens) - 2; i++ {
+        specs[QuadgramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i + 1]],
+            DictionaryIdThird: tokensMap[tokens[i + 2]],
+        }] = false
+    }
+    
+    quadgrams, err := database.quadgramsGet(specs, true, oldestAllowedTime)
+    if err != nil {
+        return err
+    }
+    
+    for i := 0; i < len(tokens) - 3; i++ {
+        quadgram := quadgrams[QuadgramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i + 1]],
+            DictionaryIdThird: tokensMap[tokens[i + 2]],
+        }]
+        quadgram.increment(tokensMap[tokens[i + 3]])
+    }
+    quadgram := quadgrams[QuadgramSpec{
+        DictionaryIdFirst: tokensMap[tokens[len(tokens) - 3]],
+        DictionaryIdSecond: tokensMap[tokens[len(tokens) - 2]],
+        DictionaryIdThird: tokensMap[tokens[len(tokens) - 1]],
+    }]
+    quadgram.increment(BoundaryId)
+    
+    return database.quadgramsSet(quadgrams, true, rescaleThreshold, rescaleDecimator)
+}
+func learnQuadgramsReverse(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    specs := make(map[QuadgramSpec]bool, len(tokens))
+    for i := len(tokens) - 1; i >= 2; i-- {
+        specs[QuadgramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i - 1]],
+            DictionaryIdThird: tokensMap[tokens[i - 2]],
+        }] = false
+    }
+    
+    quadgrams, err := database.quadgramsGet(specs, false, oldestAllowedTime)
+    if err != nil {
+        return err
+    }
+    
+    for i := len(tokens) - 1; i >= 3; i-- {
+        quadgram := quadgrams[QuadgramSpec{
+            DictionaryIdFirst: tokensMap[tokens[i]],
+            DictionaryIdSecond: tokensMap[tokens[i - 1]],
+            DictionaryIdThird: tokensMap[tokens[i - 2]],
+        }]
+        quadgram.increment(tokensMap[tokens[i - 3]])
+    }
+    quadgram := quadgrams[QuadgramSpec{
+        DictionaryIdFirst: tokensMap[tokens[2]],
+        DictionaryIdSecond: tokensMap[tokens[1]],
+        DictionaryIdThird: tokensMap[tokens[0]],
+    }]
+    quadgram.increment(BoundaryId)
+    
+    return database.quadgramsSet(quadgrams, false, rescaleThreshold, rescaleDecimator)
+}
+func learnQuadgrams(
+    database *database,
+    tokens []string,
+    tokensMap map[string]int,
+    oldestAllowedTime int64,
+    rescaleThreshold int,
+    rescaleDecimator int,
+) (error) {
+    if len(tokens) < 3 {
+        return nil
+    }
+    
+    if err := learnQuadgramsForward(
+        database,
+        tokens,
+        tokensMap,
+        oldestAllowedTime,
+        rescaleThreshold,
+        rescaleDecimator,
+    ); err != nil {
+        return err
+    }
+    return learnQuadgramsReverse(
+        database,
+        tokens,
+        tokensMap,
+        oldestAllowedTime,
+        rescaleThreshold,
+        rescaleDecimator,
+    )
+}
