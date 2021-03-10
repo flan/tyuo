@@ -1,39 +1,35 @@
 package language
 import (
     "github.com/flan/tyuo/context"
+    
+    "golang.org/x/text/transform"
 )
 
 
-//WARNING Disregard all other notes on punctuation and the encoding thereof.
-//punctuation will be encoded as standalone tokens, not part of the word to
-//which it's attached.
-//additionally, this means they won't be chosen as keywords, which sidesteps the
-//problem of something like "tyuo, desu?" not matching "desu" in other places.
-//Compound punctuation won't be learnable if it's not in the recognised set.
-
 func digestToken(
     token []rune,
-    language *language,
+    digester func([]rune, *transform.Transformer)([]context.ParsedToken, bool),
+    normaliser *transform.Transformer,
 ) ([]context.ParsedToken, bool) {
     parsedTokens := parseSymbol(token)
     if len(parsedTokens) > 0 {
         return parsedTokens, true
     }
     
-    //asks the language if it's a valid word
-    //response is zero or more parsed tokens; two typically means it was a word with
-    //some punctuation at the end
-    
-    //the language's processor is responsible for resolving whether the use of punctuation was appropriate
+    return digester(token, normaliser)
 }
 
 func lex(
     input string,
+    learn bool,
     maxTokenLength int,
-    language *language,
+    language *languageDefinition,
 ) ([]context.ParsedToken, bool) {
     delimiter := language.delimiter
     characters := language.characters
+    
+    normaliser := language.getNormaliser()
+    digester := language.digestToken
     
     tokens := make([]context.ParsedToken, 0, 16)
     
@@ -44,11 +40,14 @@ func lex(
         if r == delimiter {
             if len(currentToken) > 0 {
                 if currentTokenValid {
-                    digestedTokens, learnable := digestToken(currentToken, language)
+                    digestedTokens, learnable := digestToken(currentToken, digester, normaliser)
                     if len(digestedTokens) > 0 {
                         tokens = append(tokens, digestedTokens...)
                     }
                     if !learnable {
+                        if learn {
+                            return tokens, false
+                        }
                         inputLearnable = false
                     }
                 }
@@ -60,6 +59,9 @@ func lex(
         if _, isCharacter := characters[r]; !isCharacter {
             if _, isPunctuation := punctuation[r]; !isPunctuation {
                 if _, isSymbolRune := symbolRunes[r]; !isSymbolRune {
+                    if learn {
+                        return tokens, false
+                    }
                     currentTokenValid = false
                     inputLearnable = false
                     continue
@@ -71,17 +73,23 @@ func lex(
             if len(currentToken) < maxTokenLength {
                 currentToken = append(currentToken, r)
             } else {
+                if learn {
+                    return tokens, false
+                }
                 currentTokenValid = false
                 inputLearnable = false
             }
         }
     }
     if currentTokenValid && len(currentToken) > 0 {
-        digestedTokens, learnable := digestToken(currentToken, language)
+        digestedTokens, learnable := digestToken(currentToken, digester, normaliser)
         if len(digestedTokens) > 0 {
             tokens = append(tokens, digestedTokens...)
         }
         if !learnable {
+            if learn {
+                return tokens, false
+            }
             inputLearnable = false
         }
     }
@@ -89,8 +97,30 @@ func lex(
     return tokens, inputLearnable
 }
 
-func Parse(input string, ctx *context.Context) ([]context.ParsedToken, bool) {
+func Parse(input string, learn bool, ctx *context.Context) ([]context.ParsedToken, bool) {
+    var lang *languageDefinition
+    switch ctx.GetLanguage() {
+        case "english":
+            lang = &englishLanguageDefinition
+        case "francais":
+            lang = &frenchLanguageDefinition
+        default:
+            logger.Errorf("unrecognised language: %s", ctx.GetLanguage())
+            return make([]context.ParsedToken, 0), false
+    }
+    parsedTokens, learnable := lex(input, learn, ctx.GetMaxTokenLength(), lang)
     
-    //returns the usable tokens read from input and a boolean value indicating
-    //whether the input was learnable or not
+    if learnable {
+        //one final pass over tokens to make sure there's no consecutive punctuation (which is all single-token strings now)
+        previousTokenIsPunctuation := false
+        for _, token := range parsedTokens {
+            _, isPunctuation := context.PunctuationIdsByToken[token.Base]
+            if isPunctuation && previousTokenIsPunctuation {
+                return parsedTokens, false
+            }
+            previousTokenIsPunctuation = isPunctuation
+        }
+    }
+    
+    return parsedTokens, learnable
 }

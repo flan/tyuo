@@ -1,24 +1,28 @@
 package language
 import (
+    "github.com/juju/loggo"
+    
     "github.com/flan/tyuo/context"
+    
+    "golang.org/x/text/transform"
 )
+
+var logger = loggo.GetLogger("language")
 
 type void struct{}
 var voidInstance = void{}
 
-type runeSet map[rune]void
+type runeset map[rune]void
 
-type language struct {
+type languageDefinition struct {
     delimiter rune
     characters runeset
-    //TODO: define processing functions
+    
+    getNormaliser func()(*transform.Transformer)
+    digestToken func([]rune, *transform.Transformer)([]context.ParsedToken, bool)
 }
 
-var punctuation runeset
 
-func init() {
-    punctuation = make(runeset, len(context.PunctuationIdsByToken))
-    for punc, _ := range context.PunctuationIdsByToken {
-        punctuation[punc] = voidInstance
-    }
+func Test(x string) {
+    //Only here so this package gets compiled
 }

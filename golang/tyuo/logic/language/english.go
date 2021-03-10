@@ -1,104 +1,173 @@
 package language
-//the idea here is to tokenise input, producing orthogonal and lower-case parallel
-//values, for learning and presenting; these are context.ParsedToken structs
-//this happens in both flows, before banning is checked... except it's probably
-//more performant to just lcase the input and run that through the ban-checker
-//then do tokenisation if it's still meaningful to do so
-//(which is "always", in the query flow)
+import (
+    "github.com/flan/tyuo/context"
+    
+    "unicode"
+    "golang.org/x/text/cases"
+    lang "golang.org/x/text/language"
+    "golang.org/x/text/runes"
+    "golang.org/x/text/transform"
+    "golang.org/x/text/unicode/norm"
+)
 
-//then, for the language-specific bits, in a later pass for the query-stream,
-//non-keyword options are filtered out,
-//and the most interesting words are selected from the remainder, which means
-//there will need to be a reference to the disctionary to select for rarity
+var englishCharacters = runeset{
+    'a': voidInstance,
+    'b': voidInstance,
+    'c': voidInstance,
+    'd': voidInstance,
+    'e': voidInstance,
+    'f': voidInstance,
+    'g': voidInstance,
+    'h': voidInstance,
+    'i': voidInstance,
+    'j': voidInstance,
+    'k': voidInstance,
+    'l': voidInstance,
+    'm': voidInstance,
+    'n': voidInstance,
+    'o': voidInstance,
+    'p': voidInstance,
+    'q': voidInstance,
+    'r': voidInstance,
+    's': voidInstance,
+    't': voidInstance,
+    'u': voidInstance,
+    'v': voidInstance,
+    'w': voidInstance,
+    'x': voidInstance,
+    'y': voidInstance,
+    'z': voidInstance,
+    'A': voidInstance,
+    'B': voidInstance,
+    'C': voidInstance,
+    'D': voidInstance,
+    'E': voidInstance,
+    'F': voidInstance,
+    'G': voidInstance,
+    'H': voidInstance,
+    'I': voidInstance,
+    'J': voidInstance,
+    'K': voidInstance,
+    'L': voidInstance,
+    'M': voidInstance,
+    'N': voidInstance,
+    'O': voidInstance,
+    'P': voidInstance,
+    'Q': voidInstance,
+    'R': voidInstance,
+    'S': voidInstance,
+    'T': voidInstance,
+    'U': voidInstance,
+    'V': voidInstance,
+    'W': voidInstance,
+    'X': voidInstance,
+    'Y': voidInstance,
+    'Z': voidInstance,
+    'é': voidInstance,
+    'É': voidInstance,
+    apostrophe: voidInstance,
+    hyphen: voidInstance,
+}
+
+const englishConsecutiveVowelLimit = 3
+const englishConsecutiveConsonantLimit = 6
+var englishVowelsNormalised = runeset{
+    'a': voidInstance,
+    'e': voidInstance,
+    'i': voidInstance,
+    'o': voidInstance,
+    'u': voidInstance,
+}
+
+var englishLanguageDefinition = languageDefinition{
+    delimiter: ' ',
+    characters: englishCharacters,
+    
+    getNormaliser: func()(*transform.Transformer) {
+        chain := transform.Chain(
+            norm.NFD,
+            runes.Remove(runes.In(unicode.Mn)),
+            cases.Lower(lang.English),
+            norm.NFC,
+        )
+        return &chain
+    },
+    digestToken: func (token []rune, normaliser *transform.Transformer) ([]context.ParsedToken, bool) {
+        tokens := make([]context.ParsedToken, 2)
+        punctuationBefore, punctuationAfter, token, learnable := punctuationDissect(token)
+        if !learnable {
+            return tokens, false
+        }
+        
+        if punctuationBefore != nullToken {
+            tokens = append(tokens, punctuationBefore)
+        }
+        
+        if len(token) > 0 { //not fully digested
+            //punctuationDissect will deal with leading/trailing hyphens, so just check for apostrophes
+            if token[0] == apostrophe || token[len(token) - 1] == apostrophe {
+                //a learnable token can't be bounded by an apostrophe, since it might be a quotation mark
+                return tokens, false
+            }
+            
+            containsPunctuation := false
+            for _, r := range token {
+                if _, isCharacter := englishCharacters[r]; !isCharacter {
+                    return tokens, false
+                }
+                if r == apostrophe || r == hyphen {
+                    if containsPunctuation { //allow at most one punctuation-mark, to limit abuse
+                        return tokens, false
+                    }
+                    containsPunctuation = true
+                }
+            }
+            
+            //get the normalised base-form
+            variant := string(token)
+            base, _, err := transform.String(*normaliser, variant)
+            if err != nil {
+                logger.Warningf("unable to normalise token %s: %s", variant, err)
+                return tokens, false
+            }
+            
+            //check to make sure there aren't too many vowels or consonants clumped together; this likely indicates gibberish
+            vowelCount := 0
+            consonantCount := 0
+            for _, r := range base {
+                if _, isVowel := englishVowelsNormalised[r]; isVowel {
+                    vowelCount++
+                    if vowelCount > englishConsecutiveVowelLimit {
+                        return tokens, false
+                    }
+                    consonantCount = 0
+                } else {
+                    consonantCount++
+                    if consonantCount > englishConsecutiveConsonantLimit {
+                        return tokens, false
+                    }
+                    vowelCount = 0
+                }
+            }
+            
+            tokens = append(tokens, context.ParsedToken{
+                Base: base,
+                Variant: variant,
+            })
+        }
+        
+        if punctuationAfter != nullToken {
+            tokens = append(tokens, punctuationAfter)
+        }
+        
+        return tokens, true
+    },
+}
+
+
 
 //there's also a formatting step where the first token in a sentence gets capitalised,
 //if the chosen representation was case-insensitive.
 
+//when formatting, if the very first token is an ellipsis, don't put a space after it
 
-//NOTE: when generating the case-insensitive form of a word, the language rules might
-//do something like say "if an apostrophe occurs in the middle of this token, its
-//case-insensitive form is apostrophe-less", while the with-apostrophe version is considered
-//capitalised
-//in English, this can probably just be a blanket conversion, with the exception of "it's"
-//this should catch "im", "didnt", "thats" and other such things, and eliminate incorrect
-//pluralised forms
-//...except this doesn't really work, because there might be valid pluralised forms
-//and possessives that would otherwise overlap.
-//NOTE: just treat the tokens as they occur; don't try to correct for them
-//when choosing how to present it, if the selected token is identical to its insensitive form
-//except for whatever delta the language-rules know how to process, then the CaseSensitive
-//value is treated as CaseInsensitive for capitalisation purposes
-//basic logic: step through both strings one character at a time, discarding apostrophes
-//if, when the end of both are reached, all characters along the way matched, then it's an
-//apostrophe variant
-
-
-//when lexing punctuation, convert "--" and standalone "-" into "—"
-//convert "!!+" into "‼"
-//"??+" into "⁇"
-//any chain of "?!" and "!?" into "⁈"
-//any sequence "..+" into "…"
-
-var englishLanguage = language{
-    delimiter: ' ',
-    characters: runeset{
-        'a': voidInstance,
-        'b': voidInstance,
-        'c': voidInstance,
-        'd': voidInstance,
-        'e': voidInstance,
-        'f': voidInstance,
-        'g': voidInstance,
-        'h': voidInstance,
-        'i': voidInstance,
-        'j': voidInstance,
-        'k': voidInstance,
-        'l': voidInstance,
-        'm': voidInstance,
-        'n': voidInstance,
-        'o': voidInstance,
-        'p': voidInstance,
-        'q': voidInstance,
-        'r': voidInstance,
-        's': voidInstance,
-        't': voidInstance,
-        'u': voidInstance,
-        'v': voidInstance,
-        'w': voidInstance,
-        'x': voidInstance,
-        'y': voidInstance,
-        'z': voidInstance,
-        'A': voidInstance,
-        'B': voidInstance,
-        'C': voidInstance,
-        'D': voidInstance,
-        'E': voidInstance,
-        'F': voidInstance,
-        'G': voidInstance,
-        'H': voidInstance,
-        'I': voidInstance,
-        'J': voidInstance,
-        'K': voidInstance,
-        'L': voidInstance,
-        'M': voidInstance,
-        'N': voidInstance,
-        'O': voidInstance,
-        'P': voidInstance,
-        'Q': voidInstance,
-        'R': voidInstance,
-        'S': voidInstance,
-        'T': voidInstance,
-        'U': voidInstance,
-        'V': voidInstance,
-        'W': voidInstance,
-        'X': voidInstance,
-        'Y': voidInstance,
-        'Z': voidInstance,
-        '\'': voidInstance,
-        '-': voidInstance,
-    },
-}
-
-//when validating whether or not something is a word, if it starts with an apostrophe
-//or hyphen, it isn't.
-//if it contains any punctuation not in the characterset, it isn't

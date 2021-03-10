@@ -553,7 +553,7 @@ func (db *database) terminalsGetTerminals(
     
     if rows, err := db.connection.Query(
         query,
-        intsetToInterfaceSlice(ids)...,
+        intSetToInterfaceSlice(ids)...,
     ); err == nil {
         defer rows.Close()
         results := make(map[int]Terminal, len(ids))

@@ -15,7 +15,7 @@ var symbolRunes = runeset{
     '_': voidInstance,
     '\\': voidInstance,
     '/': voidInstance,
-    '|': voidInstance.
+    '|': voidInstance,
     '3': voidInstance,
     'C': voidInstance,
     'c': voidInstance,
@@ -41,8 +41,6 @@ var symbolRunes = runeset{
     '😭': voidInstance,
     '😢': voidInstance,
     '😮': voidInstance,
-    '❤️': voidInstance,
-    '💔': voidInstance,
     '🔥': voidInstance,
 }
 
@@ -65,7 +63,7 @@ var symbolsToRepresentation = map[string]string{
     "T.T": "T_T",
     "n.n": "n.n",
     "n_n": "n.n",
-    "\o/": "\o/",
+    "\\o/": "\\o/",
     "/o/": "/o/",
     "\\o\\": "\\o\\",
     "vOv": "vOv",
@@ -81,7 +79,7 @@ var symbolsToRepresentation = map[string]string{
     ">:3c": ">:3c",
     
     //kaomoji
-    "¯\_(ツ)_/¯": "¯\_(ツ)_/¯",
+    "¯\\_(ツ)_/¯": "¯\\_(ツ)_/¯",
     
     //emoji
     "😶": "😶",
@@ -96,8 +94,6 @@ var symbolsToRepresentation = map[string]string{
     "😭": "😭",
     "😢": "😢",
     "😮": "😮",
-    "❤️": "❤️",
-    "💔": "💔",
     "🔥": "🔥",
 }
 

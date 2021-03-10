@@ -134,15 +134,15 @@ type contextConfig struct {
         <language>.boring
 */
 
-func intSliceToSet(i []int) (intSet) {
-    iMap := make(intSet, len(i))
+func intSliceToSet(i []int) (intset) {
+    iMap := make(intset, len(i))
     for _, k := range i {
         iMap[k] = false
     }
     return iMap
 }
-func stringSliceToSet(s []string) (stringSet) {
-    sMap := make(stringSet, len(s))
+func stringSliceToSet(s []string) (stringset) {
+    sMap := make(stringset, len(s))
     for _, k := range s {
         sMap[k] = false
     }
@@ -163,6 +163,10 @@ type Context struct {
 func (c *Context) GetLanguage() (string) {
     return c.config.Language
 }
+func (c *Context) GetMaxTokenLength() (int) {
+    return c.config.Learning.MaxTokenLength
+}
+
 func (c *Context) AreDigramsEnabled() (bool) {
     return c.config.Ngrams.Digrams
 }

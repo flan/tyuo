@@ -21,6 +21,7 @@ import (
     "github.com/juju/loggo"
     
     "github.com/flan/tyuo/context"
+    "github.com/flan/tyuo/logic/language"
 )
 
 var logger = loggo.GetLogger("main")
@@ -38,4 +39,5 @@ func main() {
     contextDir := filepath.Join(homeDir, ".tyuo/contexts")
     fmt.Println(contextDir)
     context.Test(contextDir)
+    language.Test(contextDir)
 }
