@@ -1,4 +1,4 @@
-package structure
+package logic
 import (
     "github.com/juju/loggo"
     "math/rand"

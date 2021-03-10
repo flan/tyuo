@@ -14,21 +14,41 @@ package main
 
 import (
     "fmt"
+    "flag"
     
     "os"
+    "os/signal"
     "path/filepath"
+    
+    "syscall"
     
     "github.com/juju/loggo"
     
     "github.com/flan/tyuo/context"
     "github.com/flan/tyuo/logic/language"
+    "github.com/flan/tyuo/service"
 )
 
 var logger = loggo.GetLogger("main")
 
+func setupSignals(shutdown chan<- string) {
+    var sigs = make(chan os.Signal, 1)
+    signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+    
+    go func() {
+        var sig = <-sigs
+        shutdown<- fmt.Sprintf("requested by operator, signal=%s", sig.String())
+    }()
+}
+
 func main() {
-    writer, _ := loggo.RemoveWriter("default")
-    loggo.RegisterWriter("default", writer)
+    flag.Parse()
+    //use a flag to set logging level
+    
+    loggo.GetLogger("").SetLogLevel(loggo.DEBUG)
+    loggo.RemoveWriter("default")
+    loggo.RegisterWriter("console", loggo.NewSimpleWriter(os.Stderr, loggo.DefaultFormatter))
+    
     
     homeDir, err := os.UserHomeDir()
     if err != nil {
@@ -40,4 +60,15 @@ func main() {
     fmt.Println(contextDir)
     context.Test(contextDir)
     language.Test(contextDir)
+    
+    shutdownChannel := make(chan string, 1)
+    
+    setupSignals(shutdownChannel)
+    
+    httpShutdownChannel := service.RunForever(shutdownChannel, nil)
+    
+    logger.Infof("beginning normal operation...")
+    logger.Warningf("system shutting down: %s...", <-shutdownChannel)
+    
+    httpShutdownChannel<- true
 }

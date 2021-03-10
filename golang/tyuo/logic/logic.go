@@ -1,3 +1,4 @@
+package logic
 //when generating paths from the top level, run each searchBranch in its
 //own goroutine, so there should be ten in the base case, all doing reads
 //on the database; this should be fine, since only one request can be served

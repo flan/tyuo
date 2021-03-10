@@ -327,6 +327,12 @@ func (cm *ContextManager) Close() {
     cm.databaseManager.Close()
     cm.contexts = make(map[string]Context)
 }
+func (cm *ContextManager) GetContext(contextId string) (*Context, error) {
+    cm.lock.Lock()
+    defer cm.lock.Unlock()
+    
+    return nil, nil
+}
 
 //function to get contexts
 //nothing except "GetContext()"; contexts need to be defined
