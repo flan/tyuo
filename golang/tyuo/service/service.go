@@ -14,7 +14,7 @@ import (
 )
 
 var httpIp = flag.String("http-ip", "", "the IP on which to listen for HTTP requests")
-var httpPort = flag.Uint("http-port", 8080, "the port on which to listen for HTTP requests")
+var httpPort = flag.Uint("http-port", 48100, "the port on which to listen for HTTP requests")
 
 var contextIdRe = regexp.MustCompile("^[_a-zA-Z0-9][-_a-zA-Z0-9]{0,220}$")
 
@@ -76,6 +76,7 @@ func speakHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextMan
     logger.Infof("%d", context)
     //ask logic to generate a response, which internally calls Parse
     //and everything else in the chain
+    //EnumerateKeytokenIds is used to filter key-tokens
     */
     
     logger.Infof("prepared response in %s", time.Now().Sub(startTime))

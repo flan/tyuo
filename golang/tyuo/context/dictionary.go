@@ -1,8 +1,36 @@
 package context
+import (
+    "bufio"
+    "os"
+    "strings"
+)
 
 type ParsedToken struct {
     Base string
     Variant string
+}
+
+
+func processBoringTokens(listPath string) (map[string]void, error) {
+    file, err := os.Open(listPath)
+    if err != nil {
+        return nil, err
+    }
+    defer file.Close()
+
+    output := make(map[string]void)
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        token := strings.ToLower(strings.TrimSpace(scanner.Text()))
+        if len(token) > 0 {
+            output[token] = voidInstance
+        }
+    }
+    if err := scanner.Err(); err != nil {
+        return nil, err
+    }
+    logger.Debugf("loaded {} language-level boring tokens", len(output))
+    return output, nil
 }
 
 

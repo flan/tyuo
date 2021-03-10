@@ -155,6 +155,7 @@ type Context struct {
     database *database
     bannedDictionary *bannedDictionary
     dictionary *dictionary
+    boringTokens map[string]void
     
     //users of this struct are expected to respect this lock
     //learning is a writing flow; everything else is reading
@@ -308,6 +309,25 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     return nil
 }
 
+func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
+    candidates := make(stringset, len(tokens))
+    for _, pt := range tokens {
+        if _, isPunctuation := PunctuationIdsByToken[pt.Base]; isPunctuation {
+            continue
+        }
+        if _, isBoring := c.boringTokens[pt.Base]; isBoring {
+            continue
+        }
+        if c.bannedDictionary.containsBannedToken(pt.Base) {
+            continue
+        }
+        
+        candidates[pt.Base] = false
+    }
+    
+    return c.database.dictionaryEnumerateIdsByToken(candidates)
+}
+
 
 
 
@@ -316,6 +336,7 @@ type ContextManager struct {
     databaseManager databaseManager
     
     bannedTokensGenericByLanguage map[string][]string
+    boringTokensByLanguage map[string]map[string]void
     
     contexts map[string]Context
     

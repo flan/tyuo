@@ -240,30 +240,11 @@ func (db *database) Close() (error) {
 
 
 
-func deserialiseVariantFormsJSON(data *sql.NullString) (map[string]int) {
-    if data.Valid {
-        var buffer map[string]int = nil
-        if err := json.Unmarshal([]byte(data.String), &buffer); err == nil {
-            return buffer
-        } else { //some sort of database corruption, almost certainly due to misuse
-            logger.Warningf("unable to deserialise variantFormsJSON; reinitialising state: %s", err)
-        }
-    }
-    return make(map[string]int)
-}
-func serialiseVariantFormsJSON(data map[string]int) (interface{}) {
-    if len(data) == 0 {
-        return nil
+func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
+    if len(tokens) == 0 {
+        return make(map[string]int, 0), nil
     }
     
-    if buffer, err := json.Marshal(data); err == nil {
-        return buffer
-    } else {
-        logger.Warningf("unable to serialise variantFormsJSON; reinitialising state: %s", err)
-        return nil
-    }
-}
-func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
     if stmt, err := db.connection.Prepare(`
     SELECT
         baseRepresentation,
@@ -297,6 +278,64 @@ func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[s
         return nil, err
     }
 }
+func (db *database) dictionaryEnumerateIdsByToken(tokens stringset) ([]int, error) {
+    if len(tokens) == 0 {
+        return make([]int, 0), nil
+    }
+    
+    if rows, err := db.connection.Query(fmt.Sprintf(`
+        SELECT
+            id
+        FROM
+            dictionary
+        WHERE
+            baseRepresentation IN (%s)
+        LIMIT %d
+        `, prepareSqliteArrayParams(1, len(tokens)), len(tokens)),
+        stringSetToInterfaceSlice(tokens)...,
+    ); err == nil {
+        defer rows.Close()
+        
+        output := make([]int, 0, len(tokens))
+        for rows.Next() {
+            var did int
+            if err:= rows.Scan(&did); err == nil {
+                output = append(output, did)
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+
+
+func deserialiseVariantFormsJSON(data *sql.NullString) (map[string]int) {
+    if data.Valid {
+        var buffer map[string]int = nil
+        if err := json.Unmarshal([]byte(data.String), &buffer); err == nil {
+            return buffer
+        } else { //some sort of database corruption, almost certainly due to misuse
+            logger.Warningf("unable to deserialise variantFormsJSON; reinitialising state: %s", err)
+        }
+    }
+    return make(map[string]int)
+}
+func serialiseVariantFormsJSON(data map[string]int) (interface{}) {
+    if len(data) == 0 {
+        return nil
+    }
+    
+    if buffer, err := json.Marshal(data); err == nil {
+        return buffer
+    } else {
+        logger.Warningf("unable to serialise variantFormsJSON; reinitialising state: %s", err)
+        return nil
+    }
+}
+
 func processDictionaryRows(maxCount int, rows *sql.Rows) ([]DictionaryToken, error) {
     output := make([]DictionaryToken, 0, maxCount)
     for rows.Next() {

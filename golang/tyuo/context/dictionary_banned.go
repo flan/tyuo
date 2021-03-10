@@ -153,14 +153,13 @@ func (bd *bannedDictionary) unban(tokens stringset) (error) {
     return nil
 }
 func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
-    lcaseS := strings.ToLower(s)
     for _, bt := range bd.bannedTokensGeneric {
-        if strings.Contains(lcaseS, bt) {
+        if strings.Contains(s, bt) {
             return true
         }
     }
     for _, bt := range bd.bannedTokens {
-        if strings.Contains(lcaseS, bt.baseRepresentation) {
+        if strings.Contains(s, bt.baseRepresentation) {
             return true
         }
     }
