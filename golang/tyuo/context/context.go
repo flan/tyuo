@@ -325,7 +325,7 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
         candidates[pt.Base] = false
     }
     
-    return c.database.dictionaryEnumerateIdsByToken(candidates)
+    return c.dictionary.getIdsByToken(candidates)
 }
 
 

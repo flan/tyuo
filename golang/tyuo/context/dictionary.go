@@ -123,6 +123,10 @@ func (d *dictionary) getSliceById(ids intset) (map[int]DictionaryToken, error) {
     return dictionarySlice, nil
 }
 
+func (d *dictionary) getIdsByToken(tokens stringset) ([]int, error) {
+    return d.database.dictionaryEnumerateIdsByToken(tokens)
+}
+
 func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  rescaleDecimator int) ([]DictionaryToken, error) {
     //get any existing entries from the database
     tokenSet := make(stringset, len(tokens))
