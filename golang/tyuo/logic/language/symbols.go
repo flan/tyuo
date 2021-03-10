@@ -3,54 +3,71 @@ import (
     "github.com/flan/tyuo/context"
 )
 
-//emoticons and maybe emoji
-//special cases where an otherwise-unacceptable rune-sequence will be valid
-
-//when lexing, assemble a full non-whitespace-delimited token before looking at what it contains, subject to each rune being in either the language's native space
-//or this module
-
-//that can probably be a set that the language assembles in an init()
-
-//once a token is done, check it against a list of known structures here before
-//trying to evaluate it as punctuation.
-
 var symbolRunes = runeset{
+    //emoticon bits
     ':': voidInstance,
     ';': voidInstance,
     '<': voidInstance,
     '>': voidInstance,
     '(': voidInstance,
     ')': voidInstance,
-    'o': voidInstance,
-    '0': voidInstance,
-    'O': voidInstance,
     '_': voidInstance,
     '.': voidInstance,
     'T': voidInstance,
-    '^': voidInstance,
-    'x': voidInstance,
     'n': voidInstance,
     'D': voidInstance,
+    'o': voidInstance,
     '\\': voidInstance,
     '/': voidInstance,
     '3': voidInstance,
-    'U': voidInstance,
-    'w': voidInstance,
+    'c': voidInstance,
+    'C': voidInstance,
+    
+    //emoji
     '🙂': voidInstance,
     '🙁': voidInstance,
 }
 
-var symbols = map[string]void{
-    ":D": voidInstance,
+var symbolsToRepresentation = map[string]string{
+    //emoticons
+    ":)": ":)",
+    ":(": ":(",
+    ":D": ":D",
+    "D:": "D:",
+    ">:D": ">:D",
+    "D:<": "D:<",
+    ">:(": ">:(",
+    "):<": "):<",
+    ";_;": ";_;",
+    ";.;": ";_;",
+    "T_T": "T_T",
+    "T.T": "T_T",
+    "n.n": "n.n",
+    "n_n": "n.n",
+    "\o/": "\o/",
+    "/o/": "/o/",
+    "\\o\\": "\\o\\",
+    ":3": ":3",
+    ">:3": ">:3",
+    "<3": "<3",
+    ":C": ":C",
+    ":c": ":C",
+    ">:C": ">:C",
+    ">:c": ">:C",
+    ":3c": ":3c",
+    
+    //emoji
+    "🙂": "🙂",
+    "🙁": "🙁",
 }
 
 func parseSymbol(token []rune) ([]context.ParsedToken) {
     s := string(token)
-    if _, isSymbol := symbols[s]; isSymbol {
+    if representation, isSymbol := symbolsToRepresentation[s]; isSymbol {
         return []context.ParsedToken{
             context.ParsedToken{
-                Base: s,
-                Variant: s,
+                Base: representation,
+                Variant: representation,
             },
         }
     }
