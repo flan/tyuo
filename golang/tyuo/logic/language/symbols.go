@@ -4,7 +4,7 @@ import (
 )
 
 var symbolRunes = runeset{
-    //emoticon bits
+    //emoticon and kaomoji bits
     ':': voidInstance,
     ';': voidInstance,
     '<': voidInstance,
@@ -22,10 +22,14 @@ var symbolRunes = runeset{
     '3': voidInstance,
     'c': voidInstance,
     'C': voidInstance,
+    '¯': voidInstance,
+    'ツ': voidInstance,
     
     //emoji
     '🙂': voidInstance,
     '🙁': voidInstance,
+    '🙃': voidInstance,
+    '❤️': voidInstance,
 }
 
 var symbolsToRepresentation = map[string]string{
@@ -56,9 +60,14 @@ var symbolsToRepresentation = map[string]string{
     ">:c": ">:C",
     ":3c": ":3c",
     
+    //kaomoji
+    "¯\_(ツ)_/¯": "¯\_(ツ)_/¯",
+    
     //emoji
     "🙂": "🙂",
     "🙁": "🙁",
+    "🙃": "🙃",
+    "❤️": "❤️",
 }
 
 func parseSymbol(token []rune) ([]context.ParsedToken) {
