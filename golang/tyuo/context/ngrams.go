@@ -58,7 +58,11 @@ func transitionsSumChildren(transitions map[int]transitionSpec) (int) {
 }
 //this is a weighted random selection of all possible transition nodes,
 //a standard Markov-walk selection approach
-func transitionsChooseWeightedRandom(transitions map[int]transitionSpec, count int, banCheck func([]int)(map[int]bool)) ([]int) {
+func transitionsChooseWeightedRandom(
+    transitions map[int]transitionSpec,
+    count int,
+    banCheck func([]int)(map[int]bool),
+) ([]int) {
     remainingTransitions := make(map[int]transitionSpec, len(transitions))
     for did, ts := range transitions {
         if !banCheck([]int{did})[did] {
@@ -87,7 +91,10 @@ func transitionsChooseWeightedRandom(transitions map[int]transitionSpec, count i
 }
 //this is part of the surprise-calculation from MegaHAL, used to evaluate how
 //predictable a production ended up being as the basis of its scoring system
-func transitionsCalculateSurprise(transitions map[int]transitionSpec, dictionaryId int) (float64) {
+func transitionsCalculateSurprise(
+    transitions map[int]transitionSpec,
+    dictionaryId int,
+) (float64) {
     ts, defined := transitions[dictionaryId]
     if !defined {
         logger.Errorf("an impossible transition to %d was requested", dictionaryId)
@@ -121,6 +128,15 @@ func (g *Digram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 func (g *Digram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
 }
+func (g *Digram) SelectTransitionIds(
+    count int,
+    banCheck func([]int)(map[int]bool),
+) ([]int) {
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Digram) CalculateSurprise(dictionaryId int) (float64) {
+    return transitionsCalculateSurprise(g.transitions, dictionaryId)
+}
 
 
 type TrigramSpec struct {
@@ -139,6 +155,16 @@ func (g *Trigram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 func (g *Trigram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
 }
+func (g *Trigram) SelectTransitionIds(
+    count int,
+    banCheck func([]int)(map[int]bool),
+) ([]int) {
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Trigram) CalculateSurprise(dictionaryId int) (float64) {
+    return transitionsCalculateSurprise(g.transitions, dictionaryId)
+}
+
 
 type QuadgramSpec struct {
     DictionaryIdFirst int
@@ -158,6 +184,16 @@ func (g *Quadgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 func (g *Quadgram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
 }
+func (g *Quadgram) SelectTransitionIds(
+    count int,
+    banCheck func([]int)(map[int]bool),
+) ([]int) {
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Quadgram) CalculateSurprise(dictionaryId int) (float64) {
+    return transitionsCalculateSurprise(g.transitions, dictionaryId)
+}
+
 
 type QuintgramSpec struct {
     DictionaryIdFirst int
@@ -178,6 +214,15 @@ func (g *Quintgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 }
 func (g *Quintgram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
+}
+func (g *Quintgram) SelectTransitionIds(
+    count int,
+    banCheck func([]int)(map[int]bool),
+) ([]int) {
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Quintgram) CalculateSurprise(dictionaryId int) (float64) {
+    return transitionsCalculateSurprise(g.transitions, dictionaryId)
 }
 
 
