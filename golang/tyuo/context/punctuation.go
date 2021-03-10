@@ -62,8 +62,8 @@ var punctuation = []punctuationSpec{
 } //there's an upper limit of `reservedIdsPunctuation` elements on this structure
 
 //CAUTION: do not write code that alters these structures at runtime
-var PunctuationIdByToken map[string]int = make(map[string]int, len(punctuation))
-var PunctuationTokenById map[int]string = make(map[int]string, len(punctuation))
+var PunctuationIdsByToken map[string]int = make(map[string]int, len(punctuation))
+var PunctuationTokensById map[int]string = make(map[int]string, len(punctuation))
 func init() {
     for _, ps := range punctuation {
         PunctuationIdsByToken[ps.token] = ps.id

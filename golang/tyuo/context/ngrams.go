@@ -1,5 +1,6 @@
 package context
 import (
+    "math"
     "time"
 )
 
@@ -19,33 +20,92 @@ type transitionSpec struct {
     lastObserved int64
 }
 
-func transitionsIncrement(m map[int]transitionSpec, dictionaryId int) {
-    ts, _ := m[dictionaryId] //the nil case for ts will set occurrents to 0
-    m[dictionaryId] = transitionSpec{
+func transitionsIncrement(transitions map[int]transitionSpec, dictionaryId int) {
+    ts, _ := transitions[dictionaryId] //the nil case for ts will set occurrences to 0
+    transitions[dictionaryId] = transitionSpec{
         occurrences: ts.occurrences + 1,
         lastObserved: time.Now().Unix(),
     }
 }
 //called before writing the value to the database
-func transitionsRescale(m map[int]transitionSpec, rescaleThreshold int,  rescaleDecimator int) {
+func transitionsRescale(transitions map[int]transitionSpec, rescaleThreshold int,  rescaleDecimator int) {
     rescaleNeeded := false
-    for _, ts := range m {
+    for _, ts := range transitions {
         if ts.occurrences > rescaleThreshold {
             rescaleNeeded = true
             break
         }
     }
     if rescaleNeeded {
-        for did, ts := range m {
+        for did, ts := range transitions {
             ts.occurrences /= rescaleDecimator
             if ts.occurrences > 0 {
-                m[did] = ts //it's a copy
+                transitions[did] = ts //it's a copy
             } else {
-                delete(m, did)
+                delete(transitions, did)
             }
         }
     }
 }
+
+
+func transitionsSumChildren(transitions map[int]transitionSpec) (int) {
+    var sum int = 0
+    for _, ts := range transitions {
+        sum += ts.occurrences
+    }
+    return sum
+}
+//this is a weighted random selection of all possible transition nodes,
+//a standard Markov-walk selection approach
+func transitionsChooseWeightedRandom(transitions map[int]transitionSpec, count int, banCheck func([]int)(map[int]bool)) ([]int) {
+    remainingTransitions := make(map[int]transitionSpec, len(transitions))
+    for did, ts := range transitions {
+        if !banCheck([]int{did})[did] {
+            remainingTransitions[did] = ts
+        }
+    }
+    
+    selectedIds := make([]int, 0, count)
+    for len(selectedIds) < count {
+        transitionsSum := transitionsSumChildren(remainingTransitions)
+        if transitionsSum == 0 { //all options exhausted
+            break
+        }
+        
+        target := rng.Int63n(int64(transitionsSum))
+        for dictionaryId, ts := range remainingTransitions {
+            target -= int64(ts.occurrences)
+            if target <= 0 {
+                selectedIds = append(selectedIds, dictionaryId)
+                delete(remainingTransitions, dictionaryId)
+                break
+            }
+        }
+    }
+    return selectedIds
+}
+//this is part of the surprise-calculation from MegaHAL, used to evaluate how
+//predictable a production ended up being as the basis of its scoring system
+func transitionsCalculateSurprise(transitions map[int]transitionSpec, dictionaryId int) (float64) {
+    ts, defined := transitions[dictionaryId]
+    if !defined {
+        logger.Errorf("an impossible transition to %d was requested", dictionaryId)
+        return 0.0
+    }
+    
+    transitionsSum := transitionsSumChildren(transitions)
+    if transitionsSum == 0 {
+        //this can happen if an obsolete N-gram is chosen to satisfy the walk's
+        //start; just make it neutral
+        return 0.0
+    }
+    
+    return -math.Log2(float64(ts.occurrences) / float64(transitionsSum))
+}
+
+
+
 
 type DigramSpec struct {
     DictionaryIdFirst int

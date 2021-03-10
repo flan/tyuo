@@ -212,7 +212,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     //strip punctuation so it doesn't get learned redundantly
     depunctuatedTokens := make([]ParsedToken, 0, len(tokens))
     for _, pt := range tokens {
-        if _, defined := PunctuationIdByToken[pt.Base]; !defined {
+        if _, defined := PunctuationIdsByToken[pt.Base]; !defined {
             depunctuatedTokens = append(depunctuatedTokens, pt)
         }
     }
@@ -229,12 +229,12 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     //not needed anymore and this function is far from over
     depunctuatedTokens = nil
     
-    tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdByToken))
+    tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdsByToken))
     for _, dt := range dictionaryTokens {
         tokensMap[dt.baseRepresentation] = dt.id
     }
     //put punctuation mappings in
-    for token, id := range PunctuationIdByToken {
+    for token, id := range PunctuationIdsByToken {
         tokensMap[token] = id
     }
     
