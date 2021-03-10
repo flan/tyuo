@@ -72,7 +72,7 @@ func prepareDictionary(database *database) (*dictionary, error) {
         nextIdentifier: nextIdentifier,
     }, nil
 }
-func (d *dictionary) getSliceByToken(tokens stringSet) (map[string]DictionaryToken, error) {
+func (d *dictionary) getSliceByToken(tokens stringset) (map[string]DictionaryToken, error) {
     dictionaryTokens, err := d.database.dictionaryGetTokensByToken(tokens)
     if err != nil {
         return nil, err
@@ -83,7 +83,7 @@ func (d *dictionary) getSliceByToken(tokens stringSet) (map[string]DictionaryTok
     }
     return dictionarySlice, nil
 }
-func (d *dictionary) getSliceById(ids intSet) (map[int]DictionaryToken, error) {
+func (d *dictionary) getSliceById(ids intset) (map[int]DictionaryToken, error) {
     dictionaryTokens, err := d.database.dictionaryGetTokensById(ids)
     if err != nil {
         return nil, err
@@ -97,7 +97,7 @@ func (d *dictionary) getSliceById(ids intSet) (map[int]DictionaryToken, error) {
 
 func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  rescaleDecimator int) ([]DictionaryToken, error) {
     //get any existing entries from the database
-    tokenSet := make(stringSet, len(tokens))
+    tokenSet := make(stringset, len(tokens))
     for _, token := range tokens {
         tokenSet[token.Base] = false
     }

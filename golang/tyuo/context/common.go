@@ -11,8 +11,8 @@ type void struct{}
 var voidInstance = void{}
 
 //set-types where the value doesn't actually matter
-type intSet map[int]bool
-type stringSet map[string]bool
+type intset map[int]bool
+type stringset map[string]bool
 
 //used to denote the end of a sentence
 const BoundaryId = -2147483648 //int32 minimum; should constrain database byte-sizing

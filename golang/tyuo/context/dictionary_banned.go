@@ -85,7 +85,7 @@ func prepareBannedDictionary(
         bannedIdsGeneric: bannedIdsGeneric,
     }, nil
 }
-func (bd *bannedDictionary) ban(tokens stringSet) (error) {
+func (bd *bannedDictionary) ban(tokens stringset) (error) {
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
         lcaseToken := strings.ToLower(token)
@@ -119,7 +119,7 @@ func (bd *bannedDictionary) ban(tokens stringSet) (error) {
     }
     return nil
 }
-func (bd *bannedDictionary) unban(tokens stringSet) (error) {
+func (bd *bannedDictionary) unban(tokens stringset) (error) {
     bannedTokenIndexes := make([]int, 0, len(tokens))
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
@@ -166,7 +166,7 @@ func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
     }
     return false
 }
-func (bd *bannedDictionary) getIdBannedStatus(ids intSet) (map[int]bool) {
+func (bd *bannedDictionary) getIdBannedStatus(ids intset) (map[int]bool) {
     results := make(map[int]bool, len(ids))
     for id := range ids {
         if _, defined := bd.bannedIds[id]; defined {

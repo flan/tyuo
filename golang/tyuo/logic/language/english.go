@@ -1,3 +1,4 @@
+package language
 //the idea here is to tokenise input, producing orthogonal and lower-case parallel
 //values, for learning and presenting; these are context.ParsedToken structs
 //this happens in both flows, before banning is checked... except it's probably
@@ -37,3 +38,67 @@
 //"??+" into "⁇"
 //any chain of "?!" and "!?" into "⁈"
 //any sequence "..+" into "…"
+
+var englishLanguage = language{
+    delimiter: ' ',
+    characters: runeset{
+        'a': voidInstance,
+        'b': voidInstance,
+        'c': voidInstance,
+        'd': voidInstance,
+        'e': voidInstance,
+        'f': voidInstance,
+        'g': voidInstance,
+        'h': voidInstance,
+        'i': voidInstance,
+        'j': voidInstance,
+        'k': voidInstance,
+        'l': voidInstance,
+        'm': voidInstance,
+        'n': voidInstance,
+        'o': voidInstance,
+        'p': voidInstance,
+        'q': voidInstance,
+        'r': voidInstance,
+        's': voidInstance,
+        't': voidInstance,
+        'u': voidInstance,
+        'v': voidInstance,
+        'w': voidInstance,
+        'x': voidInstance,
+        'y': voidInstance,
+        'z': voidInstance,
+        'A': voidInstance,
+        'B': voidInstance,
+        'C': voidInstance,
+        'D': voidInstance,
+        'E': voidInstance,
+        'F': voidInstance,
+        'G': voidInstance,
+        'H': voidInstance,
+        'I': voidInstance,
+        'J': voidInstance,
+        'K': voidInstance,
+        'L': voidInstance,
+        'M': voidInstance,
+        'N': voidInstance,
+        'O': voidInstance,
+        'P': voidInstance,
+        'Q': voidInstance,
+        'R': voidInstance,
+        'S': voidInstance,
+        'T': voidInstance,
+        'U': voidInstance,
+        'V': voidInstance,
+        'W': voidInstance,
+        'X': voidInstance,
+        'Y': voidInstance,
+        'Z': voidInstance,
+        '\'': voidInstance,
+        '-': voidInstance,
+    },
+}
+
+//when validating whether or not something is a word, if it starts with an apostrophe
+//or hyphen, it isn't.
+//if it contains any punctuation not in the characterset, it isn't

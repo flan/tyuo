@@ -37,14 +37,14 @@ func intSliceToInterfaceSlice(s []int) ([]interface{}) {
     }
     return output
 }
-func stringSetToInterfaceSlice(s stringSet) ([]interface{}) {
+func stringSetToInterfaceSlice(s stringset) ([]interface{}) {
     output := make([]interface{}, 0, len(s))
     for k, _ := range(s) {
         output = append(output, k)
     }
     return output
 }
-func intSetToInterfaceSlice(s intSet) ([]interface{}) {
+func intSetToInterfaceSlice(s intset) ([]interface{}) {
     output := make([]interface{}, 0, len(s))
     for k, _ := range(s) {
         output = append(output, k)
@@ -317,7 +317,7 @@ func processDictionaryRows(maxCount int, rows *sql.Rows) ([]DictionaryToken, err
     }
     return output, nil
 }
-func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]DictionaryToken, error) {
+func (db *database) dictionaryGetTokensByToken(tokens stringset) ([]DictionaryToken, error) {
     if len(tokens) == 0 {
         return make([]DictionaryToken, 0), nil
     }
@@ -345,7 +345,7 @@ func (db *database) dictionaryGetTokensByToken(tokens stringSet) ([]DictionaryTo
         return nil, err
     }
 }
-func (db *database) dictionaryGetTokensById(ids intSet) ([]DictionaryToken, error) {
+func (db *database) dictionaryGetTokensById(ids intset) ([]DictionaryToken, error) {
     if len(ids) == 0 {
         return make([]DictionaryToken, 0), nil
     }
@@ -527,14 +527,14 @@ func (db *database) bannedUnbanTokens(tokens []string) (error) {
 
 
 func (db *database) terminalsGetTerminals(
-    ids intSet,
+    ids intset,
     oldestAllowedTime int64,
 ) (map[int]Terminal, error) {
     if len(ids) == 0 {
         return make(map[int]Terminal, 0), nil
     }
     
-    remainingIds := make(intSet, len(ids))
+    remainingIds := make(intset, len(ids))
     for id := range ids {
         remainingIds[id] = false
     }
@@ -553,7 +553,7 @@ func (db *database) terminalsGetTerminals(
     
     if rows, err := db.connection.Query(
         query,
-        intSetToInterfaceSlice(ids)...,
+        intsetToInterfaceSlice(ids)...,
     ); err == nil {
         defer rows.Close()
         results := make(map[int]Terminal, len(ids))

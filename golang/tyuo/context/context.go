@@ -47,7 +47,7 @@ type contextConfigLearning struct {
     //the number of runes allowed within any single token,
     //used to prevent over-hyphenated compounds that will only
     //ever be seen a handful of times from cluttering the database
-    MaxTokenLength int
+    MaxTokenLength int //12-15 is probably a good range for this
     
     //how long to hold on to n-gram structures
     MaxAge int64
@@ -131,7 +131,7 @@ type contextConfig struct {
         }
     languages/
         <language>.banned
-        <language>.nonkey
+        <language>.boring
 */
 
 func intSliceToSet(i []int) (intSet) {

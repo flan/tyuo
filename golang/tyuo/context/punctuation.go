@@ -47,17 +47,14 @@ var punctuation = []punctuationSpec{
         token: "⁇", //for any chain of "??+"
         id: -2147483647 + 9,
     },
-    punctuationSpec{
-        token: ".",
-        id: -2147483647 + 10,
     },
     punctuationSpec{
         token: "—",
-        id: -2147483647 + 11,
+        id: -2147483647 + 10,
     },
     punctuationSpec{
         token: "&",
-        id: -2147483647 + 12,
+        id: -2147483647 + 11,
     },
 } //there's an upper limit of `reservedIdsPunctuation` elements on this structure
 
