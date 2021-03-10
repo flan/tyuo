@@ -13,7 +13,7 @@ import (
     _ "github.com/mattn/go-sqlite3"
 )
 
-var dbDebug = flag.Bool("db-debug", false, "whether to use database debugging features; should usually be false")
+var dbDebug = flag.Bool("db-debug", false, "use database debugging features")
 
 func prepareSqliteArrayParams(start int, count int) (string) {
     arrayParams := make([]string, count)

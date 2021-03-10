@@ -13,7 +13,7 @@ import (
     "github.com/flan/tyuo/context"
 )
 
-var httpIp = flag.String("http-ip", "", "the IP on which to listen for HTTP requests")
+var httpIp = flag.String("http-ip", "", "the IP on which to listen for HTTP requests (default all)")
 var httpPort = flag.Uint("http-port", 48100, "the port on which to listen for HTTP requests")
 
 var contextIdRe = regexp.MustCompile("^[_a-zA-Z0-9][-_a-zA-Z0-9]{0,220}$")
