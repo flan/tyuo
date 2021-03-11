@@ -126,6 +126,13 @@ func punctuationDissect(token []rune) (context.ParsedToken, context.ParsedToken,
     }
     if len(currentToken) > 0 {
         token = token[:len(token) - len(currentToken)]
+        
+        //NOTE: none of the supported punctuation cases about ordering, so
+        //this should be unnecessary, but reverse the slice for consistency
+        for i, j := 0, len(currentToken) - 1; i < j; i, j = i + 1, j - 1 {
+            currentToken[i], currentToken[j] = currentToken[j], currentToken[i]
+        }
+        
         parsedToken := punctuationDigest(string(currentToken))
         if parsedToken != nullToken {
             punctuationAfter = parsedToken
