@@ -111,5 +111,5 @@ func parseSymbol(token []rune) ([]context.ParsedToken) {
             },
         }
     }
-    return make([]context.ParsedToken, 0)
+    return nil
 }

@@ -22,7 +22,6 @@ import (
     "github.com/juju/loggo"
     
     "github.com/flan/tyuo/context"
-    "github.com/flan/tyuo/logic/language"
     "github.com/flan/tyuo/service"
 )
 
@@ -59,10 +58,6 @@ func main() {
     } else {
         dataPath = *dataDir
     }
-    
-    
-    fmt.Println(dataPath)
-    language.Test(dataPath)
     
     
     contextManager, err := context.PrepareContextManager(dataPath)

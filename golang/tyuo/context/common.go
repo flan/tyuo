@@ -38,3 +38,49 @@ func MakeStringNormaliser() (*transform.Transformer) {
     )
     return &chain
 }
+
+
+func intSliceToSet(i []int) (intset) {
+    iMap := make(intset, len(i))
+    for _, k := range i {
+        iMap[k] = false
+    }
+    return iMap
+}
+func stringSliceToSet(s []string) (stringset) {
+    sMap := make(stringset, len(s))
+    for _, k := range s {
+        sMap[k] = false
+    }
+    return sMap
+}
+
+
+func stringSliceToInterfaceSlice(s []string) ([]interface{}) {
+    output := make([]interface{}, len(s))
+    for i, v := range(s) {
+        output[i] = v
+    }
+    return output
+}
+func intSliceToInterfaceSlice(s []int) ([]interface{}) {
+    output := make([]interface{}, len(s))
+    for i, v := range(s) {
+        output[i] = v
+    }
+    return output
+}
+func stringSetToInterfaceSlice(s stringset) ([]interface{}) {
+    output := make([]interface{}, 0, len(s))
+    for k, _ := range(s) {
+        output = append(output, k)
+    }
+    return output
+}
+func intSetToInterfaceSlice(s intset) ([]interface{}) {
+    output := make([]interface{}, 0, len(s))
+    for k, _ := range(s) {
+        output = append(output, k)
+    }
+    return output
+}

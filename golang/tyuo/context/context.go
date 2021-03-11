@@ -15,22 +15,6 @@ const LanguageEnglish = "english"
 const LanguageFrench = "french"
 
 
-func intSliceToSet(i []int) (intset) {
-    iMap := make(intset, len(i))
-    for _, k := range i {
-        iMap[k] = false
-    }
-    return iMap
-}
-func stringSliceToSet(s []string) (stringset) {
-    sMap := make(stringset, len(s))
-    for _, k := range s {
-        sMap[k] = false
-    }
-    return sMap
-}
-
-
 type contextConfigNgrams struct {
     /* digrams are the simplest and fastest transition model; using them will
      * produce behaviour that is often novel, sometimes insightful,
@@ -367,7 +351,7 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
 
     ids, err := c.dictionary.getIdsByToken(candidates)
     if err != nil {
-        return ids, err
+        return nil, err
     }
     filteredIds := make([]int, 0, len(ids))
     for _, id := range ids {

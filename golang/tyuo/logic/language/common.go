@@ -20,8 +20,3 @@ type languageDefinition struct {
     
     digestToken func([]rune, *transform.Transformer)([]context.ParsedToken, bool)
 }
-
-
-func Test(x string) {
-    //Only here so this package gets compiled
-}

@@ -110,7 +110,7 @@ var frenchLanguageDefinition = languageDefinition{
         tokens := make([]context.ParsedToken, 0, 2)
         punctuationBefore, punctuationAfter, token, learnable := punctuationDissect(token)
         if !learnable {
-            return tokens, false
+            return nil, false
         }
         
         if punctuationBefore != nullToken {
@@ -121,17 +121,17 @@ var frenchLanguageDefinition = languageDefinition{
             //punctuationDissect will deal with leading/trailing hyphens, so just check for apostrophes
             if token[0] == apostrophe || token[len(token) - 1] == apostrophe {
                 //a learnable token can't be bounded by an apostrophe, since it might be a quotation mark
-                return tokens, false
+                return nil, false
             }
             
             containsPunctuation := false
             for _, r := range token {
                 if _, isCharacter := frenchCharacters[r]; !isCharacter {
-                    return tokens, false
+                    return nil, false
                 }
                 if r == apostrophe || r == hyphen {
                     if containsPunctuation { //allow at most one punctuation-mark, to limit abuse
-                        return tokens, false
+                        return nil, false
                     }
                     containsPunctuation = true
                 }
@@ -142,7 +142,7 @@ var frenchLanguageDefinition = languageDefinition{
             base, _, err := transform.String(*normaliser, variant)
             if err != nil {
                 logger.Warningf("unable to normalise token %s: %s", variant, err)
-                return tokens, false
+                return nil, false
             }
             
             //check to make sure there aren't too many vowels or consonants clumped together; this likely indicates gibberish
@@ -152,13 +152,13 @@ var frenchLanguageDefinition = languageDefinition{
                 if _, isVowel := frenchVowelsNormalised[r]; isVowel {
                     vowelCount++
                     if vowelCount > frenchConsecutiveVowelLimit {
-                        return tokens, false
+                        return nil, false
                     }
                     consonantCount = 0
                 } else {
                     consonantCount++
                     if consonantCount > frenchConsecutiveConsonantLimit {
-                        return tokens, false
+                        return nil, false
                     }
                     vowelCount = 0
                 }

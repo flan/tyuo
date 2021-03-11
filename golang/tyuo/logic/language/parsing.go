@@ -46,7 +46,7 @@ func lex(
                     }
                     if !learnable {
                         if learn {
-                            return tokens, false
+                            return nil, false
                         }
                         inputLearnable = false
                     }
@@ -61,7 +61,7 @@ func lex(
             if _, isPunctuation := punctuation[r]; !isPunctuation {
                 if _, isSymbolRune := symbolRunes[r]; !isSymbolRune {
                     if learn {
-                        return tokens, false
+                        return nil, false
                     }
                     currentTokenValid = false
                     inputLearnable = false
@@ -75,7 +75,7 @@ func lex(
                 currentToken = append(currentToken, r)
             } else {
                 if learn {
-                    return tokens, false
+                    return nil, false
                 }
                 currentTokenValid = false
                 inputLearnable = false
@@ -89,7 +89,7 @@ func lex(
         }
         if !learnable {
             if learn {
-                return tokens, false
+                return nil, false
             }
             inputLearnable = false
         }

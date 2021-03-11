@@ -50,6 +50,7 @@ type DictionaryToken struct {
 func (dt *DictionaryToken) GetId() (int) {
     return dt.id
 }
+//output is the representation to use and a boolean indicating whether it's the base form or not
 func (dt *DictionaryToken) Represent(baseRepresentationThreshold float32) (string, bool) {
     sum := float32(dt.baseOccurrences)
     for _, count := range dt.variantForms {
@@ -142,7 +143,7 @@ func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  re
     }
     dictionarySlice, err := d.getSliceByToken(tokenSet)
     if err != nil {
-        return make([]DictionaryToken, 0), err
+        return nil, err
     }
     
     //update the slice with changes
@@ -173,5 +174,8 @@ func (d *dictionary) learnTokens(tokens []ParsedToken, rescaleThreshold int,  re
     for _, dt := range dictionarySlice {
         newTokens = append(newTokens, dt)
     }
-    return newTokens, d.database.dictionarySetTokens(newTokens, rescaleThreshold, rescaleDecimator)
+    if err = d.database.dictionarySetTokens(newTokens, rescaleThreshold, rescaleDecimator); err != nil {
+        return nil, err
+    }
+    return newTokens, nil
 }

@@ -23,36 +23,6 @@ func prepareSqliteArrayParams(start int, count int) (string) {
     return strings.Join(arrayParams, ",")
 }
 
-func stringSliceToInterfaceSlice(s []string) ([]interface{}) {
-    output := make([]interface{}, len(s))
-    for i, v := range(s) {
-        output[i] = v
-    }
-    return output
-}
-func intSliceToInterfaceSlice(s []int) ([]interface{}) {
-    output := make([]interface{}, len(s))
-    for i, v := range(s) {
-        output[i] = v
-    }
-    return output
-}
-func stringSetToInterfaceSlice(s stringset) ([]interface{}) {
-    output := make([]interface{}, 0, len(s))
-    for k, _ := range(s) {
-        output = append(output, k)
-    }
-    return output
-}
-func intSetToInterfaceSlice(s intset) ([]interface{}) {
-    output := make([]interface{}, 0, len(s))
-    for k, _ := range(s) {
-        output = append(output, k)
-    }
-    return output
-}
-
-
 
 
 type database struct {
