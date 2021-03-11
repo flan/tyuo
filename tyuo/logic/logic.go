@@ -9,7 +9,12 @@ import (
 func Speak(ctx *context.Context, input string) ([]assembledProduction) {
     defer func() {
         if r := recover(); r != nil {
-            logger.Criticalf("panic observed in Speak(): %s\n%s", r, string(debug.Stack()))
+            logger.Criticalf(
+                "panic observed in Speak(%s): %s\n%s",
+                input,
+                r,
+                string(debug.Stack()),
+            )
         }
     }()
     ctx.Lock.RLock()
@@ -68,7 +73,12 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
 func Learn(ctx *context.Context, input []string) (int) {
     defer func() {
         if r := recover(); r != nil {
-            logger.Criticalf("panic observed in Learn(): %s\n%s", r, string(debug.Stack()))
+            logger.Criticalf(
+                "panic observed in Learn(%v): %s\n%s",
+                input,
+                r,
+                string(debug.Stack()),
+            )
         }
     }()
     ctx.Lock.Lock()
@@ -95,7 +105,12 @@ func Learn(ctx *context.Context, input []string) (int) {
 func BanSubstrings(ctx *context.Context, substrings []string) () {
     defer func() {
         if r := recover(); r != nil {
-            logger.Criticalf("panic observed in BanSubstrings(): %s\n%s", r, string(debug.Stack()))
+            logger.Criticalf(
+                "panic observed in BanSubstrings(%v): %s\n%s",
+                substrings,
+                r,
+                string(debug.Stack()),
+            )
         }
     }()
     ctx.Lock.Lock()
@@ -108,7 +123,12 @@ func BanSubstrings(ctx *context.Context, substrings []string) () {
 func UnbanSubstrings(ctx *context.Context, substrings []string) () {
     defer func() {
         if r := recover(); r != nil {
-            logger.Criticalf("panic observed in UnbanSubstrings(): %s\n%s", r, string(debug.Stack()))
+            logger.Criticalf(
+                "panic observed in UnbanSubstrings(%v): %s\n%s",
+                substrings,
+                r,
+                string(debug.Stack()),
+            )
         }
     }()
     ctx.Lock.Lock()
