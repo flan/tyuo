@@ -130,10 +130,10 @@ func (bd *bannedDictionary) ban(substrings stringset) (error) {
                 }
             }
         }
+        logger.Debugf("banned %d tokens: %v...", len(newlyBannedTokens), newlyBannedTokens)
     } else {
         return err
     }
-logger.Criticalf("%v", bd.bannedTokens)
     return nil
 }
 func (bd *bannedDictionary) unban(substrings stringset) (error) {
@@ -153,17 +153,18 @@ func (bd *bannedDictionary) unban(substrings stringset) (error) {
         for idx, bt := range bd.bannedTokens {
             if bt.baseRepresentation == normalisedSubstring {
                 bannedTokenIndexes = append(bannedTokenIndexes, idx)
-                bannedSubstrings = append(bannedSubstrings, normalisedSubstring)
                 break
             }
         }
+        bannedSubstrings = append(bannedSubstrings, normalisedSubstring)
     }
     if len(bannedSubstrings) == 0 {
         return nil
     }
     logger.Infof("unbanning %d substrings: %v...", len(bannedSubstrings), bannedSubstrings)
+    logger.Debugf("unbanning %d IDs: %v...", len(bannedTokenIndexes), bannedTokenIndexes)
 
-    if err := bd.database.bannedUnbanTokens(bannedSubstrings); err != nil {
+    if err := bd.database.bannedUnbanSubstrings(bannedSubstrings); err != nil {
         return err
     }
 
@@ -176,7 +177,6 @@ func (bd *bannedDictionary) unban(substrings stringset) (error) {
     //cut the tail
     bd.bannedTokens = bd.bannedTokens[:len(bd.bannedTokens) - len(bannedTokenIndexes)]
     
-logger.Criticalf("%v", bd.bannedTokens)
     return nil
 }
 func (bd *bannedDictionary) containsBannedToken(s string) (bool) {

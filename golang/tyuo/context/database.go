@@ -473,15 +473,17 @@ func (db *database) bannedLoadBannedTokens(
     ); err == nil {
         defer rows.Close()
         
-        output := make([]bannedToken, 0)
+        output := make([]bannedToken, 0, len(tokenSubset))
         for rows.Next() {
             var cir string
-            var did int
+            var did sql.NullInt64
             if err:= rows.Scan(&cir, &did); err == nil {
-                output = append(output, bannedToken{
-                    baseRepresentation: cir,
-                    dictionaryId: did,
-                })
+                if did.Valid {
+                    output = append(output, bannedToken{
+                        baseRepresentation: cir,
+                        dictionaryId: int(did.Int64),
+                    })
+                }
             } else {
                 return nil, err
             }
@@ -522,7 +524,7 @@ func (db *database) bannedBanSubstrings(substrings []string) ([]bannedToken, err
     }
     return db.bannedLoadBannedTokens(substrings);
 }
-func (db *database) bannedUnbanTokens(substrings []string) (error) {
+func (db *database) bannedUnbanSubstrings(substrings []string) (error) {
     query := fmt.Sprintf(`
     DELETE FROM
         dictionary_banned
