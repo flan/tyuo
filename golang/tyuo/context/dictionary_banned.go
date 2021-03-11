@@ -36,11 +36,11 @@ func processBannedTokens(listPath string) ([]string, error) {
 
 type bannedDictionary struct {
     database *database
-    
+
     //words from database
     bannedTokens []bannedToken
     bannedIds map[int]void
-    
+
     //tokens from the list
     bannedTokensGeneric []string
     bannedIdsGeneric map[int]void
@@ -63,7 +63,7 @@ func prepareBannedDictionary(
     }
     logger.Debugf("loaded {} banned tokens", len(bannedTokens))
     logger.Debugf("loaded {} banned IDs", len(bannedIds))
-    
+
     //enumerate the IDs of anything in the dictionary that predated additions to the language-level ban-list
     bannedIdsGeneric := make(map[int]void)
     if bvs, err := database.dictionaryEnumerateTokensBySubstring(bannedTokensGeneric); err == nil {
@@ -74,13 +74,13 @@ func prepareBannedDictionary(
         return nil, err
     }
     logger.Debugf("identified {} IDs mapped to banned language-level tokens", len(bannedIdsGeneric))
-    
+
     return &bannedDictionary{
         database: database,
-        
+
         bannedTokens: bannedTokens,
         bannedIds: bannedIds,
-        
+
         bannedTokensGeneric: bannedTokensGeneric,
         bannedIdsGeneric: bannedIdsGeneric,
     }, nil
@@ -89,7 +89,7 @@ func (bd *bannedDictionary) ban(tokens stringset) (error) {
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
         lcaseToken := strings.ToLower(token)
-        
+
         alreadyBanned := false
         for _, bt := range bd.bannedTokens {
             if bt.baseRepresentation == lcaseToken {
@@ -104,7 +104,7 @@ func (bd *bannedDictionary) ban(tokens stringset) (error) {
     if len(bannedTokens) == 0 {
         return nil
     }
-    
+
     if newlyBannedTokens, err := bd.database.bannedBanTokens(bannedTokens); err == nil {
         for _, bt := range newlyBannedTokens {
             bd.bannedTokens = append(bd.bannedTokens, bt)
@@ -124,7 +124,7 @@ func (bd *bannedDictionary) unban(tokens stringset) (error) {
     bannedTokens := make([]string, 0, len(tokens))
     for token := range tokens {
         lcaseToken := strings.ToLower(token)
-        
+
         for idx, bt := range bd.bannedTokens {
             if bt.baseRepresentation == lcaseToken {
                 bannedTokenIndexes = append(bannedTokenIndexes, idx)
@@ -136,20 +136,20 @@ func (bd *bannedDictionary) unban(tokens stringset) (error) {
     if len(bannedTokens) == 0 {
         return nil
     }
-    
+
     if err := bd.database.bannedUnbanTokens(bannedTokens); err != nil {
         return err
     }
-    
+
     for i, idx := range bannedTokenIndexes {
         delete(bd.bannedIds, bd.bannedTokens[idx].dictionaryId)
-        
+
         //move an element from the tail over the one to be removed
         bd.bannedTokens[idx] = bd.bannedTokens[len(bd.bannedTokens) - (1 + i)]
     }
     //cut the tail
     bd.bannedTokens = bd.bannedTokens[:len(bd.bannedTokens) - len(bannedTokenIndexes)]
-    
+
     return nil
 }
 func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
@@ -165,18 +165,19 @@ func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
     }
     return false
 }
-func (bd *bannedDictionary) getIdBannedStatus(ids intset) (map[int]bool) {
+func (bd *bannedDictionary) getIdBannedStatus(id int) (bool) {
+    if _, defined := bd.bannedIds[id]; defined {
+        return true
+    }
+    if _, defined := bd.bannedIdsGeneric[id]; defined {
+        return true
+    }
+    return false
+}
+func (bd *bannedDictionary) getIdsBannedStatus(ids intset) (map[int]bool) {
     results := make(map[int]bool, len(ids))
     for id := range ids {
-        if _, defined := bd.bannedIds[id]; defined {
-            results[id] = true
-            continue
-        }
-        if _, defined := bd.bannedIdsGeneric[id]; defined {
-            results[id] = true
-            continue
-        }
-        results[id] = false
+        results[id] = bd.getIdBannedStatus(id)
     }
     return results
 }
