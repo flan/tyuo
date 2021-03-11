@@ -71,6 +71,10 @@ var symbolsToRepresentation = map[string]string{
     ">:3": ">:3",
     "<3": "<3",
     "</3": "</3",
+    "C:": "C:"
+    "c:": "C:"
+    "C:<": "C:<"
+    "c:<": "C:<"
     ":C": ":C",
     ":c": ":C",
     ">:C": ">:C",
