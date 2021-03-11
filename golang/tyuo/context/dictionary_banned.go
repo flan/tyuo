@@ -180,13 +180,20 @@ func (bd *bannedDictionary) unban(substrings stringset) (error) {
     return nil
 }
 func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
+    normaliser := MakeStringNormaliser()
+    normalisedString, _, err := transform.String(*normaliser, s)
+    if err != nil {
+        logger.Errorf("unable to normalise %s: %s", s, err)
+        return true
+    }
+    
     for _, bs := range bd.bannedSubstringsGeneric {
-        if strings.Contains(s, bs) {
+        if strings.Contains(normalisedString, bs) {
             return true
         }
     }
     for _, bt := range bd.bannedTokens {
-        if strings.Contains(s, bt.baseRepresentation) {
+        if strings.Contains(normalisedString, bt.baseRepresentation) {
             return true
         }
     }

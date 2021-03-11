@@ -43,8 +43,10 @@ func Speak(ctx *context.Context, input string) ([][]string) {
     ctx.Lock.RLock()
     defer ctx.Lock.RUnlock()
     
-    logger.Debugf("%s", input)
     tokens, learnable := language.Parse(input, false, ctx)
+    
+    
+    
     logger.Debugf("learnable: %t", learnable)
     logger.Debugf("parsed tokens: %v", tokens)
     return [][]string{
@@ -65,6 +67,10 @@ func Learn(ctx *context.Context, input []string) (int) {
     
     linesLearned := 0
     for _, inputLine := range input {
+        if !ctx.IsAllowed(inputLine) {
+            continue
+        }
+        
         tokens, learnable := language.Parse(inputLine, true, ctx)
         if learnable && len(tokens) > 0 {
             if err := ctx.LearnInput(tokens); err != nil {
