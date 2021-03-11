@@ -4,8 +4,8 @@ import (
 )
 
 //receives a collection of productions;
-//scores and groups any surviving results in descending order of value
-func score(ctx *context.Context, productions []production) ([][]production, error) {
+//produces a collection of productions with scoring data
+func score(ctx *context.Context, productions []production) ([]scoredProduction, error) {
     
     //use goroutines liberally
     
@@ -31,3 +31,6 @@ func score(ctx *context.Context, productions []production) ([][]production, erro
 //in the event that a lower level was enabled post-deployment, there
 //will be gaps, but that's fine: just ignore any transitions for which there
 //are no records
+
+
+//if surprise is enabled, also include that value; otherwise, set surprise to 0.0

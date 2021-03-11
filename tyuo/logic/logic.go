@@ -6,7 +6,7 @@ import (
     "github.com/flan/tyuo/logic/language"
 )
 
-func Speak(ctx *context.Context, input string) ([][]string) {
+func Speak(ctx *context.Context, input string) ([]assembledProduction) {
     defer func() {
         if r := recover(); r != nil {
             logger.Criticalf("panic observed in Speak(): %s\n%s", r, string(debug.Stack()))
@@ -22,7 +22,7 @@ func Speak(ctx *context.Context, input string) ([][]string) {
         return nil
     }
     
-    var scoredProductions [][]production = nil
+    var scoredProductions []scoredProduction = nil
     if len(keytokenIds) > 0 {
         //select a subset of the keytokens, to whatever threshold the context wants
         
@@ -60,9 +60,9 @@ func Speak(ctx *context.Context, input string) ([][]string) {
             logger.Errorf("unable to assemble productions: %s", err)
             return nil
         }
-        return assembled, nil
+        return assembled
     }
-    return make([][]string, 0), nil
+    return nil
 }
 
 func Learn(ctx *context.Context, input []string) (int) {

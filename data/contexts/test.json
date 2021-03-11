@@ -30,6 +30,6 @@
 
         "BaseRepresentationThreshold": 0.9,
         
-        "SurpriseWeight": 0.5
+        "CalculateSurprise": true
     }
 }

@@ -4,9 +4,9 @@ import (
     //"github.com/flan/tyuo/logic/language"
 )
 
-//receives a collection of productions grouped in scored buckets;
-//produces a collection of rendered strings, grouped in scored buckets
-func assemble(ctx *context.Context, scoredProductions [][]production) ([][]string, error) {
+//receives a collection of productions with scoring data;
+//produces a collection of rendered strings with scoring data
+func assemble(ctx *context.Context, scoredProductions []scoredProduction) ([]assembledProduction, error) {
     //iterate over all productions to get a set of IDs
     //retrieve DictionaryTokens for all of those IDs
     

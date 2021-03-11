@@ -94,13 +94,14 @@ type contextConfigProduction struct {
     //choose that; otherwise, choose the most popular variant
     BaseRepresentationThreshold float32 //0.9 is a good starting point
     
-    //this is how MegaHAL-like productions will be;
-    //  1.0 means Surprise dominates all other scoring criteria
-    //  0.0 means Surprise is disabled and productions will be scored based on heuristic correctness
-    //anything in the middle makes use of both models, proportionally weighted
+    //enabling this calculates surprise for each production, similar to how
+    //MegaHAL works to try to choose the most original response from its generations;
+    //this is in addition to tyuo's own scoring model, and it's up to the caller
+    //to decide which response to display (probably highest scored, tie-broken by
+    //highest surprise in most cases)
     //turning surprise on incurs two linear n-gram lookups at the lowest-enabled level, so
     //it may be worth disabling if milliseconds matter
-    SurpriseWeight float32
+    CalculateSurprise bool
 }
 type contextConfig struct {
     Language string //"english", "french"
