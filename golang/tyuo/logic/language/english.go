@@ -2,12 +2,7 @@ package language
 import (
     "github.com/flan/tyuo/context"
     
-    "unicode"
-    "golang.org/x/text/cases"
-    lang "golang.org/x/text/language"
-    "golang.org/x/text/runes"
     "golang.org/x/text/transform"
-    "golang.org/x/text/unicode/norm"
 )
 
 var englishCharacters = runeset{
@@ -83,15 +78,6 @@ var englishLanguageDefinition = languageDefinition{
     delimiter: ' ',
     characters: englishCharacters,
     
-    getNormaliser: func()(*transform.Transformer) {
-        chain := transform.Chain(
-            norm.NFD,
-            runes.Remove(runes.In(unicode.Mn)),
-            cases.Lower(lang.English),
-            norm.NFC,
-        )
-        return &chain
-    },
     digestToken: func (token []rune, normaliser *transform.Transformer) ([]context.ParsedToken, bool) {
         tokens := make([]context.ParsedToken, 0, 2)
         punctuationBefore, punctuationAfter, token, learnable := punctuationDissect(token)

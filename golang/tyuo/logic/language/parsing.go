@@ -28,7 +28,7 @@ func lex(
     delimiter := language.delimiter
     characters := language.characters
     
-    normaliser := language.getNormaliser()
+    normaliser := context.MakeStringNormaliser()
     digester := language.digestToken
     
     tokens := make([]context.ParsedToken, 0, 16)

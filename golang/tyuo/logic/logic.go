@@ -64,3 +64,20 @@ func Learn(ctx *context.Context, input []string) (int) {
     }
     return linesLearned
 }
+
+func BanSubstrings(ctx *context.Context, substrings []string) () {
+    ctx.Lock.Lock()
+    defer ctx.Lock.Unlock()
+    
+    if err := ctx.BanSubstrings(substrings); err != nil {
+        logger.Errorf("unable to ban substrings: %s", err)
+    }
+}
+func UnbanSubstrings(ctx *context.Context, substrings []string) () {
+    ctx.Lock.Lock()
+    defer ctx.Lock.Unlock()
+    
+    if err := ctx.UnbanSubstrings(substrings); err != nil {
+        logger.Errorf("unable to unban substrings: %s", err)
+    }
+}

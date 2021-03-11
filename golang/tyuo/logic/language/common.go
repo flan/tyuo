@@ -18,7 +18,6 @@ type languageDefinition struct {
     delimiter rune
     characters runeset
     
-    getNormaliser func()(*transform.Transformer)
     digestToken func([]rune, *transform.Transformer)([]context.ParsedToken, bool)
 }
 

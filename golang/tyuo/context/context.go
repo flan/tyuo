@@ -144,7 +144,7 @@ func prepareContext(
     contextsPath string,
     contextId string ,
     databaseManager *databaseManager,
-    bannedTokensGenericByLanguage map[string][]string,
+    bannedSubstringsGenericByLanguage map[string][]string,
     boringTokensByLanguage map[string]map[string]void,
 ) (*Context, error) {
     logger.Infof("loading context %s...", contextId)
@@ -176,11 +176,11 @@ func prepareContext(
         return nil, errors.New(fmt.Sprintf("boring tokens not defined for %s", config.Language))
     }
     
-    bannedTokensGeneric, defined := bannedTokensGenericByLanguage[config.Language]
+    bannedSubstringsGeneric, defined := bannedSubstringsGenericByLanguage[config.Language]
     if !defined {
         return nil, errors.New(fmt.Sprintf("banned tokens not defined for %s", config.Language))
     }
-    bannedDictionary, err := prepareBannedDictionary(database, bannedTokensGeneric)
+    bannedDictionary, err := prepareBannedDictionary(database, bannedSubstringsGeneric)
     if err != nil {
         return nil, err
     }
@@ -221,6 +221,12 @@ func (c *Context) AreQuintgramsEnabled() (bool) {
 }
 
 
+func (c *Context) BanSubstrings(substrings []string) (error) {
+    return c.bannedDictionary.ban(stringSliceToSet(substrings))
+}
+func (c *Context) UnbanSubstrings(substrings []string) (error) {
+    return c.bannedDictionary.unban(stringSliceToSet(substrings))
+}
 
 
 func (c *Context) getOldestAllowedTime() (int64) {
@@ -242,7 +248,6 @@ func (c *Context) IsAllowed(s string) (bool) {
 func (c *Context) GetIdsBannedStatus(ids []int) (map[int]bool) {
     return c.bannedDictionary.getIdsBannedStatus(intSliceToSet(ids))
 }
-
 
 
 func (c *Context) LearnInput(tokens []ParsedToken) (error) {
@@ -382,7 +387,7 @@ type ContextManager struct {
     
     databaseManager *databaseManager
 
-    bannedTokensGenericByLanguage map[string][]string
+    bannedSubstringsGenericByLanguage map[string][]string
     boringTokensByLanguage map[string]map[string]void
 
     contexts map[string]*Context
@@ -392,7 +397,7 @@ type ContextManager struct {
     lock sync.Mutex
 }
 func PrepareContextManager(dataPath string) (*ContextManager, error) {
-    bannedTokensGenericByLanguage := make(map[string][]string)
+    bannedSubstringsGenericByLanguage := make(map[string][]string)
     boringTokensByLanguage := make(map[string]map[string]void)
     
     languagesPath := filepath.Join(dataPath, "languages")
@@ -402,10 +407,10 @@ func PrepareContextManager(dataPath string) (*ContextManager, error) {
         for _, file := range files {
             logger.Debugf("evaluating %s...", file.Name())
             if strings.HasSuffix(file.Name(), ".banned") {
-                if bannedTokens, err := processBannedTokens(filepath.Join(languagesPath, file.Name())); err != nil {
+                if bannedSubstrings, err := processBannedSubstrings(filepath.Join(languagesPath, file.Name())); err != nil {
                     return nil, err
                 } else {
-                    bannedTokensGenericByLanguage[file.Name()[:len(file.Name()) - 7]] = bannedTokens
+                    bannedSubstringsGenericByLanguage[file.Name()[:len(file.Name()) - 7]] = bannedSubstrings
                 }
             } else if strings.HasSuffix(file.Name(), ".boring") {
                 if boringTokens, err := processBoringTokens(filepath.Join(languagesPath, file.Name())); err != nil {
@@ -423,7 +428,7 @@ func PrepareContextManager(dataPath string) (*ContextManager, error) {
         
         databaseManager: prepareDatabaseManager(contextsPath),
         
-        bannedTokensGenericByLanguage: bannedTokensGenericByLanguage,
+        bannedSubstringsGenericByLanguage: bannedSubstringsGenericByLanguage,
         boringTokensByLanguage: boringTokensByLanguage,
         
         contexts: make(map[string]*Context),
@@ -448,7 +453,7 @@ func (cm *ContextManager) GetContext(contextId string) (*Context, error) {
         cm.contextsPath,
         contextId,
         cm.databaseManager,
-        cm.bannedTokensGenericByLanguage,
+        cm.bannedSubstringsGenericByLanguage,
         cm.boringTokensByLanguage,
     ); err == nil {
         cm.contexts[contextId] = context

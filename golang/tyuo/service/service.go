@@ -112,6 +112,44 @@ func learnHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextMan
     logger.Infof("learned %d lines of input in %s", linesLearned, time.Now().Sub(startTime))
 }
 
+type banRequest struct {
+    ContextId string
+    Substrings []string
+}
+func banSubstringsHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextManager) {
+    requestJson := doPreamble(&w, r)
+    if requestJson == nil {return}
+    
+    var request banRequest
+    if err := unmarshalRequest(&w, r, *requestJson, &request); err != nil {return}
+    ctx := getContext(&w, r, request.ContextId, cm)
+    if ctx == nil {return}
+    
+    
+    var startTime time.Time = time.Now()
+    
+    logic.BanSubstrings(ctx, request.Substrings)
+    
+    logger.Infof("banned in %s", time.Now().Sub(startTime))
+}
+func unbanSubstringsHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextManager) {
+    requestJson := doPreamble(&w, r)
+    if requestJson == nil {return}
+    
+    var request banRequest
+    if err := unmarshalRequest(&w, r, *requestJson, &request); err != nil {return}
+    ctx := getContext(&w, r, request.ContextId, cm)
+    if ctx == nil {return}
+    
+    
+    var startTime time.Time = time.Now()
+    
+    logic.UnbanSubstrings(ctx, request.Substrings)
+    
+    logger.Infof("unbanned in %s", time.Now().Sub(startTime))
+}
+
+
 func RunForever(shutdown chan<- string, contextManager *context.ContextManager) (chan<- bool) {
     var kill = make(chan bool, 1)
     var addr = fmt.Sprintf("%s:%d", *httpIp, *httpPort)
@@ -126,14 +164,12 @@ func RunForever(shutdown chan<- string, contextManager *context.ContextManager) 
             learnHandler(w, r, contextManager)
         })
         
-        /*
-        http.HandleFunc("/ban", func(w http.ResponseWriter, r *http.Request) {
-            banHandler(w, r, contextManager)
+        http.HandleFunc("/banSubstrings", func(w http.ResponseWriter, r *http.Request) {
+            banSubstringsHandler(w, r, contextManager)
         })
-        http.HandleFunc("/unban", func(w http.ResponseWriter, r *http.Request) {
-            unbanHandler(w, r, contextManager)
+        http.HandleFunc("/unbanSubstrings", func(w http.ResponseWriter, r *http.Request) {
+            unbanSubstringsHandler(w, r, contextManager)
         })
-        */
 
         logger.Infof("starting HTTP service on %s...", addr)
         if err := srv.ListenAndServe(); err != nil {
@@ -151,23 +187,3 @@ func RunForever(shutdown chan<- string, contextManager *context.ContextManager) 
     
     return kill
 }
-
-
-/*
-
- {
-    "action": "learn",
-    "context": <ID as string>,
-    "input": [<string>],
- }
- {
-    "action": "banTokens",
-    "context": <ID as string>,
-    "tokens": [<token>],
- }
- {
-    "action": "unbanTokens",
-    "context": <ID as string>,
-    "tokens": [<token>],
- }
-*/

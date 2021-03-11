@@ -3,6 +3,8 @@ import (
     "bufio"
     "os"
     "strings"
+    
+    "golang.org/x/text/transform"
 )
 
 type ParsedToken struct {
@@ -18,10 +20,15 @@ func processBoringTokens(listPath string) (map[string]void, error) {
     }
     defer file.Close()
 
+    normaliser := MakeStringNormaliser()
+    
     output := make(map[string]void)
     scanner := bufio.NewScanner(file)
     for scanner.Scan() {
-        token := strings.ToLower(strings.TrimSpace(scanner.Text()))
+        token, _, err := transform.String(*normaliser, strings.TrimSpace(scanner.Text()))
+        if err != nil {
+            return nil, err
+        }
         if len(token) > 0 {
             output[token] = voidInstance
         }

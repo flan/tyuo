@@ -3,6 +3,8 @@ import (
     "bufio"
     "os"
     "strings"
+    
+    "golang.org/x/text/transform"
 )
 
 type bannedToken struct {
@@ -11,25 +13,30 @@ type bannedToken struct {
 }
 
 
-func processBannedTokens(listPath string) ([]string, error) {
+func processBannedSubstrings(listPath string) ([]string, error) {
     file, err := os.Open(listPath)
     if err != nil {
         return nil, err
     }
     defer file.Close()
 
+    normaliser := MakeStringNormaliser()
+    
     output := make([]string, 0)
     scanner := bufio.NewScanner(file)
     for scanner.Scan() {
-        token := strings.ToLower(strings.TrimSpace(scanner.Text()))
-        if len(token) > 0 {
-            output = append(output, token)
+        substring, _, err := transform.String(*normaliser, strings.TrimSpace(scanner.Text()))
+        if err != nil {
+            return nil, err
+        }
+        if len(substring) > 0 {
+            output = append(output, substring)
         }
     }
     if err := scanner.Err(); err != nil {
         return nil, err
     }
-    logger.Debugf("loaded %d language-level banned tokens", len(output))
+    logger.Debugf("loaded %d language-level banned substrings", len(output))
     return output, nil
 }
 
@@ -42,12 +49,12 @@ type bannedDictionary struct {
     bannedIds map[int]void
 
     //tokens from the list
-    bannedTokensGeneric []string
+    bannedSubstringsGeneric []string
     bannedIdsGeneric map[int]void
 }
 func prepareBannedDictionary(
     database *database,
-    bannedTokensGeneric []string,
+    bannedSubstringsGeneric []string,
 ) (*bannedDictionary, error) {
     bannedTokens := make([]bannedToken, 0)
     bannedIds := make(map[int]void)
@@ -66,7 +73,7 @@ func prepareBannedDictionary(
 
     //enumerate the IDs of anything in the dictionary that predated additions to the language-level ban-list
     bannedIdsGeneric := make(map[int]void)
-    if bvs, err := database.dictionaryEnumerateTokensBySubstring(bannedTokensGeneric); err == nil {
+    if bvs, err := database.dictionaryEnumerateTokensBySubstring(bannedSubstringsGeneric); err == nil {
         for _, bannedId := range bvs {
             bannedIdsGeneric[bannedId] = voidInstance
         }
@@ -81,31 +88,40 @@ func prepareBannedDictionary(
         bannedTokens: bannedTokens,
         bannedIds: bannedIds,
 
-        bannedTokensGeneric: bannedTokensGeneric,
+        bannedSubstringsGeneric: bannedSubstringsGeneric,
         bannedIdsGeneric: bannedIdsGeneric,
     }, nil
 }
-func (bd *bannedDictionary) ban(tokens stringset) (error) {
-    bannedTokens := make([]string, 0, len(tokens))
-    for token := range tokens {
-        lcaseToken := strings.ToLower(token)
+func (bd *bannedDictionary) ban(substrings stringset) (error) {
+    normaliser := MakeStringNormaliser()
+    
+    bannedSubstrings := make([]string, 0, len(substrings))
+    for substring := range substrings {
+        normalisedSubstring, _, err := transform.String(*normaliser, strings.TrimSpace(substring))
+        if err != nil {
+            return err
+        }
+        if len(normalisedSubstring) == 0 {
+            continue
+        }
 
         alreadyBanned := false
         for _, bt := range bd.bannedTokens {
-            if bt.baseRepresentation == lcaseToken {
+            if bt.baseRepresentation == normalisedSubstring {
                 alreadyBanned = true
                 break
             }
         }
         if !alreadyBanned {
-            bannedTokens = append(bannedTokens, lcaseToken)
+            bannedSubstrings = append(bannedSubstrings, normalisedSubstring)
         }
     }
-    if len(bannedTokens) == 0 {
+    if len(bannedSubstrings) == 0 {
         return nil
     }
-
-    if newlyBannedTokens, err := bd.database.bannedBanTokens(bannedTokens); err == nil {
+    logger.Infof("banning %d substrings: %v...", len(bannedSubstrings), bannedSubstrings)
+    
+    if newlyBannedTokens, err := bd.database.bannedBanSubstrings(bannedSubstrings); err == nil {
         for _, bt := range newlyBannedTokens {
             bd.bannedTokens = append(bd.bannedTokens, bt)
             if bt.dictionaryId != undefinedDictionaryId {
@@ -117,27 +133,37 @@ func (bd *bannedDictionary) ban(tokens stringset) (error) {
     } else {
         return err
     }
+logger.Criticalf("%v", bd.bannedTokens)
     return nil
 }
-func (bd *bannedDictionary) unban(tokens stringset) (error) {
-    bannedTokenIndexes := make([]int, 0, len(tokens))
-    bannedTokens := make([]string, 0, len(tokens))
-    for token := range tokens {
-        lcaseToken := strings.ToLower(token)
+func (bd *bannedDictionary) unban(substrings stringset) (error) {
+    normaliser := MakeStringNormaliser()
+    
+    bannedTokenIndexes := make([]int, 0, len(substrings))
+    bannedSubstrings := make([]string, 0, len(substrings))
+    for substring := range substrings {
+        normalisedSubstring, _, err := transform.String(*normaliser, strings.TrimSpace(substring))
+        if err != nil {
+            return err
+        }
+        if len(normalisedSubstring) == 0 {
+            continue
+        }
 
         for idx, bt := range bd.bannedTokens {
-            if bt.baseRepresentation == lcaseToken {
+            if bt.baseRepresentation == normalisedSubstring {
                 bannedTokenIndexes = append(bannedTokenIndexes, idx)
-                bannedTokens = append(bannedTokens, lcaseToken)
+                bannedSubstrings = append(bannedSubstrings, normalisedSubstring)
                 break
             }
         }
     }
-    if len(bannedTokens) == 0 {
+    if len(bannedSubstrings) == 0 {
         return nil
     }
+    logger.Infof("unbanning %d substrings: %v...", len(bannedSubstrings), bannedSubstrings)
 
-    if err := bd.database.bannedUnbanTokens(bannedTokens); err != nil {
+    if err := bd.database.bannedUnbanTokens(bannedSubstrings); err != nil {
         return err
     }
 
@@ -149,12 +175,13 @@ func (bd *bannedDictionary) unban(tokens stringset) (error) {
     }
     //cut the tail
     bd.bannedTokens = bd.bannedTokens[:len(bd.bannedTokens) - len(bannedTokenIndexes)]
-
+    
+logger.Criticalf("%v", bd.bannedTokens)
     return nil
 }
 func (bd *bannedDictionary) containsBannedToken(s string) (bool) {
-    for _, bt := range bd.bannedTokensGeneric {
-        if strings.Contains(s, bt) {
+    for _, bs := range bd.bannedSubstringsGeneric {
+        if strings.Contains(s, bs) {
             return true
         }
     }

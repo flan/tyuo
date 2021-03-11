@@ -521,7 +521,7 @@ func (db *database) bannedLoadBannedTokens(
         return nil, err
     }
 }
-func (db *database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
+func (db *database) bannedBanSubstrings(substrings []string) ([]bannedToken, error) {
     tx, err := db.connection.Begin()
     if err != nil {
         return nil, err
@@ -534,8 +534,8 @@ func (db *database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
     ON CONFLICT DO NOTHING
     `
     if stmt, err := tx.Prepare(query); err == nil {
-        for _, token := range tokens {
-            if _, err = stmt.Exec(token); err != nil {
+        for _, substring := range substrings {
+            if _, err = stmt.Exec(substring); err != nil {
                 break
             }
         }
@@ -550,16 +550,16 @@ func (db *database) bannedBanTokens(tokens []string) ([]bannedToken, error) {
     if err = tx.Commit(); err != nil {
         return nil, err
     }
-    return db.bannedLoadBannedTokens(tokens);
+    return db.bannedLoadBannedTokens(substrings);
 }
-func (db *database) bannedUnbanTokens(tokens []string) (error) {
+func (db *database) bannedUnbanTokens(substrings []string) (error) {
     query := fmt.Sprintf(`
     DELETE FROM
         dictionary_banned
     WHERE baseRepresentation IN (%s)
-    `, prepareSqliteArrayParams(1, len(tokens)))
+    `, prepareSqliteArrayParams(1, len(substrings)))
     
-    _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(tokens)...)
+    _, err := db.connection.Exec(query, stringSliceToInterfaceSlice(substrings)...)
     return err
 }
 
