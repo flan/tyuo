@@ -24,3 +24,10 @@ func score(ctx *context.Context, productions []production) ([][]production, erro
 
 //any production with a positive score is a response candidate and will be formatted
 //productions are grouped by score and returned is descending order
+
+
+//for MegaHAL scoring, use the lowest-enabled n-gram level on the context, since that
+//should be guaranteed to be able to finish the walk;
+//in the event that a lower level was enabled post-deployment, there
+//will be gaps, but that's fine: just ignore any transitions for which there
+//are no records
