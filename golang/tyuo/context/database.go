@@ -210,8 +210,8 @@ func (db *database) Close() (error) {
 
 
 
-func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[string]int, error) {
-    if len(tokens) == 0 {
+func (db *database) dictionaryEnumerateTokensBySubstring(substrings []string) (map[string]int, error) {
+    if len(substrings) == 0 {
         return make(map[string]int, 0), nil
     }
     
@@ -227,7 +227,7 @@ func (db *database) dictionaryEnumerateTokensBySubstring(tokens []string) (map[s
         defer stmt.Close()
         
         output := make(map[string]int)
-        for _, token := range tokens {
+        for _, token := range substrings {
             if rows, err := stmt.Query(fmt.Sprintf("%%%s%%", token)); err == nil {
                 defer rows.Close()
                 for rows.Next() {

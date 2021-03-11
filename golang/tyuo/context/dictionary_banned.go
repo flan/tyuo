@@ -70,7 +70,7 @@ func prepareBannedDictionary(
     }
     logger.Debugf("loaded %d banned tokens", len(bannedTokens))
     logger.Debugf("loaded %d banned IDs", len(bannedIds))
-
+    
     //enumerate the IDs of anything in the dictionary that predated additions to the language-level ban-list
     bannedIdsGeneric := make(map[int]void)
     if bvs, err := database.dictionaryEnumerateTokensBySubstring(bannedSubstringsGeneric); err == nil {
