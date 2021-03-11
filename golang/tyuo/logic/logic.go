@@ -53,11 +53,7 @@ func Learn(ctx *context.Context, input []string) (int) {
     
     linesLearned := 0
     for _, inputLine := range input {
-        logger.Debugf("%s", inputLine)
         tokens, learnable := language.Parse(inputLine, true, ctx)
-        logger.Debugf("learnable: %t", learnable)
-        logger.Debugf("parsed tokens: %v", tokens)
-        
         if learnable && len(tokens) > 0 {
             if err := ctx.LearnInput(tokens); err != nil {
                 logger.Errorf("unable to learn input: %s", err)
