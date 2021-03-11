@@ -46,15 +46,15 @@ type contextConfigLearning struct {
     //it is automatically fed to any enabled n-gram structures that
     //can accomodate the given length
     MinLength int
-    
+
     //the number of runes allowed within any single token,
     //used to prevent over-hyphenated compounds that will only
     //ever be seen a handful of times from cluttering the database
     MaxTokenLength int //12-15 is probably a good range for this
-    
+
     //how long to hold on to n-gram structures
     MaxAge int64
-    
+
     //the number of dictionary occurrences or transitions at which
     //to trigger rescale logic, which eliminates obsolete entries and
     //keeps the numbers in check
@@ -69,7 +69,7 @@ type contextConfigProduction struct {
     SearchBranchesInitial int //try 4
     //how many paths each child should enumerate (but not necessarily explore)
     SearchBranchesChildren int //try 10
-    
+
     //the minimum number of tokens that need to be produced
     MinLength int
     //the upper limit on how long a production can be
@@ -77,7 +77,7 @@ type contextConfigProduction struct {
     //the likelihood of stopping production, upon finding a terminal,
     //before reaching the target range
     StopProbability float32
-    
+
     //the minimum desired length of a production
     TargetMinLength int
     //the maximum desired length of a production
@@ -86,7 +86,7 @@ type contextConfigProduction struct {
     //after reaching the target range
     TargetStopProbability float32
     //NOTE: for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
-    
+
     //if a token is represented in its base form at least this often,
     //choose that; otherwise, choose the most popular variant
     BaseRepresentationThreshold float32 //0.9 is a good starting point
@@ -95,11 +95,11 @@ type contextConfigProduction struct {
 type contextConfig struct {
     //"en", "fr"
     Language string
-    
+
     Ngrams contextConfigNgrams
-    
+
     Learning contextConfigLearning
-    
+
     Production contextConfigProduction
 }
 
@@ -154,12 +154,12 @@ func stringSliceToSet(s []string) (stringset) {
 
 type Context struct {
     config contextConfig
-    
+
     database *database
     bannedDictionary *bannedDictionary
     dictionary *dictionary
     boringTokens map[string]void
-    
+
     //users of this struct are expected to respect this lock
     //learning is a writing flow; everything else is reading
     Lock sync.RWMutex
@@ -213,10 +213,10 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     if len(tokens) == 0 {
         return nil
     }
-    
+
     rescaleThreshold := c.config.Learning.RescaleThreshold
     rescaleDecimator := c.config.Learning.RescaleDecimator
-    
+
     //strip punctuation so it doesn't get learned redundantly
     depunctuatedTokens := make([]ParsedToken, 0, len(tokens))
     for _, pt := range tokens {
@@ -224,7 +224,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
             depunctuatedTokens = append(depunctuatedTokens, pt)
         }
     }
-    
+
     //first, update the dictionary to make sure all tokens have an ID
     dictionaryTokens, err := c.dictionary.learnTokens(
         depunctuatedTokens,
@@ -234,9 +234,9 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     if err != nil {
         return err
     }
-    //not needed anymore and this function is far from over
+    //not needed anymore and this function's runtime is far from over
     depunctuatedTokens = nil
-    
+
     tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdsByToken))
     for _, dt := range dictionaryTokens {
         tokensMap[dt.baseRepresentation] = dt.id
@@ -245,12 +245,12 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     for token, id := range PunctuationIdsByToken {
         tokensMap[token] = id
     }
-    
+
     baseTokens := make([]string, len(tokens))
     for i, token := range tokens {
         baseTokens[i] = token.Base
     }
-    
+
     if err = learnTerminals(
         c.database,
         tokensMap[baseTokens[0]],
@@ -258,7 +258,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     ); err != nil {
         return err
     }
-    
+
     oldestAllowedTime := c.getOldestAllowedTime()
     if c.AreDigramsEnabled() {
         if err = learnDigrams(
@@ -308,7 +308,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
             return err
         }
     }
-    
+
     return nil
 }
 
@@ -321,14 +321,21 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
         if _, isBoring := c.boringTokens[pt.Base]; isBoring {
             continue
         }
-        if c.bannedDictionary.containsBannedToken(pt.Base) {
-            continue
-        }
-        
+
         candidates[pt.Base] = false
     }
-    
-    return c.dictionary.getIdsByToken(candidates)
+
+    ids, err := c.dictionary.getIdsByToken(candidates)
+    if err != nil {
+        return ids, err
+    }
+    filteredIds := make([]int, 0, len(ids))
+    for _, id := range ids {
+        if !c.bannedDictionarygetIdBannedStatus(id) {
+            filteredIds = append(filteredIds, id)
+        }
+    }
+    return filteredIds, nil
 }
 
 
@@ -337,12 +344,12 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
 
 type ContextManager struct {
     databaseManager databaseManager
-    
+
     bannedTokensGenericByLanguage map[string][]string
     boringTokensByLanguage map[string]map[string]void
-    
+
     contexts map[string]Context
-    
+
     //used internally to control access to GetContext(), so that
     //resources like the database aren't connected multiple times
     lock sync.Mutex
@@ -354,7 +361,7 @@ func (cm *ContextManager) Close() {
 func (cm *ContextManager) GetContext(contextId string) (*Context, error) {
     cm.lock.Lock()
     defer cm.lock.Unlock()
-    
+
     return nil, nil
 }
 
