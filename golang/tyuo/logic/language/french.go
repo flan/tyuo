@@ -121,7 +121,7 @@ var frenchLanguageDefinition = languageDefinition{
         return &chain
     },
     digestToken: func (token []rune, normaliser *transform.Transformer) ([]context.ParsedToken, bool) {
-        tokens := make([]context.ParsedToken, 2)
+        tokens := make([]context.ParsedToken, 0, 2)
         punctuationBefore, punctuationAfter, token, learnable := punctuationDissect(token)
         if !learnable {
             return tokens, false

@@ -32,4 +32,4 @@ var logger = loggo.GetLogger("logic")
 
 //when doing a markov walk, choose anything in the keyword set first, if possible
 
-var rng := rand.New(rand.NewSource(time.Now().Unix()))
+var rng = rand.New(rand.NewSource(time.Now().Unix()))

@@ -1,16 +1,35 @@
 package context
 import (
+    "encoding/json"
+    "errors"
+    "fmt"
+    "io/ioutil"
+    "os"
+    "path/filepath"
+    "strings"
     "sync"
     "time"
 )
 
-//context-manager holds a bunch of contexts, keyed by ID
-//each context has a database file and a language-specifying file as artifacts
-//once a context is loaded, a database connection and the language value are
-//held in memory
-
 const LanguageEnglish = "english"
-const LanguageFrench = "français"
+const LanguageFrench = "french"
+
+
+func intSliceToSet(i []int) (intset) {
+    iMap := make(intset, len(i))
+    for _, k := range i {
+        iMap[k] = false
+    }
+    return iMap
+}
+func stringSliceToSet(s []string) (stringset) {
+    sMap := make(stringset, len(s))
+    for _, k := range s {
+        sMap[k] = false
+    }
+    return sMap
+}
+
 
 type contextConfigNgrams struct {
     /* digrams are the simplest and fastest transition model; using them will
@@ -40,19 +59,18 @@ type contextConfigNgrams struct {
      */
     Quintgrams bool
 }
-
 type contextConfigLearning struct {
     //how long, in tokens, input needs to be before learning will occur;
     //it is automatically fed to any enabled n-gram structures that
     //can accomodate the given length
-    MinLength int
+    MinTokenCount int //10
 
     //the number of runes allowed within any single token,
     //used to prevent over-hyphenated compounds that will only
     //ever be seen a handful of times from cluttering the database
     MaxTokenLength int //12-15 is probably a good range for this
 
-    //how long to hold on to n-gram structures
+    //how long to hold on to n-gram structures, in seconds
     MaxAge int64
 
     //the number of dictionary occurrences or transitions at which
@@ -63,7 +81,6 @@ type contextConfigLearning struct {
     //and how long rare entries hang around
     RescaleDecimator int //should probably be 3
 }
-
 type contextConfigProduction struct {
     //how many paths to explore from the initial token, in both directions
     SearchBranchesInitial int //try 4
@@ -90,11 +107,17 @@ type contextConfigProduction struct {
     //if a token is represented in its base form at least this often,
     //choose that; otherwise, choose the most popular variant
     BaseRepresentationThreshold float32 //0.9 is a good starting point
+    
+    //this is how MegaHAL-like productions will be;
+    //  1.0 means Surprise dominates all other scoring criteria
+    //  0.0 means Surprise is disabled and productions will be scored based on heuristic correctness
+    //anything in the middle makes use of both models, proportionally weighted
+    //turning surprise on incurs two linear n-gram lookups at the lowest-enabled level, so
+    //it may be worth disabling if milliseconds matter
+    SurpriseWeight float32
 }
-
 type contextConfig struct {
-    //"en", "fr"
-    Language string
+    Language string //"english", "french"
 
     Ngrams contextConfigNgrams
 
@@ -103,54 +126,7 @@ type contextConfig struct {
     Production contextConfigProduction
 }
 
-/*
-~/.tyuo/
-    contexts/
-        <id>.sqlite3
-        <id>.json {
-            "language": "en",
-            "nGrams": {
-                "digrams": false,
-                "trigrams": true,
-                "quadgrams": true,
-                "quintgrams": true,
-            },
-            "learning": {
-                "minLength": 5, //if learnable input is at least this long, update the dictionary and feed it into any n-grams where it fits
-                "maxAge": <a year, in seconds>,
-            },
-            "production": {
-                "minLength": 4,
-                "maxLength": 30, //just abort the production search at this point
-                "stopProbability": 0.25, //applies after min until reaching the target range
-                "targetLength": {
-                    "min": 10,
-                    "max": 20,
-                    "stopProbability": 0.5, //applies until production ends
-                    //for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
-                },
-                "caseSensitivityThreshold": 0.1,
-            },
-        }
-    languages/
-        <language>.banned
-        <language>.boring
-*/
 
-func intSliceToSet(i []int) (intset) {
-    iMap := make(intset, len(i))
-    for _, k := range i {
-        iMap[k] = false
-    }
-    return iMap
-}
-func stringSliceToSet(s []string) (stringset) {
-    sMap := make(stringset, len(s))
-    for _, k := range s {
-        sMap[k] = false
-    }
-    return sMap
-}
 
 type Context struct {
     config contextConfig
@@ -164,6 +140,66 @@ type Context struct {
     //learning is a writing flow; everything else is reading
     Lock sync.RWMutex
 }
+func prepareContext(
+    contextsPath string,
+    contextId string ,
+    databaseManager *databaseManager,
+    bannedTokensGenericByLanguage map[string][]string,
+    boringTokensByLanguage map[string]map[string]void,
+) (*Context, error) {
+    logger.Infof("loading context %s...", contextId)
+    
+    configFile, err := os.Open(filepath.Join(contextsPath, contextId + ".json"))
+    if err != nil {
+        logger.Warningf("unable to load context %s: %s", contextId, err)
+        return nil, err
+    }
+    defer configFile.Close()
+    
+    configJson, err := ioutil.ReadAll(configFile)
+    if err != nil {
+        return nil, err
+    }
+    
+    var config contextConfig
+    if err = json.Unmarshal(configJson, &config); err != nil {
+        return nil, err
+    }
+    
+    database, err := databaseManager.Load(contextId)
+    if err != nil {
+        return nil, err
+    }
+    
+    boringTokens, defined := boringTokensByLanguage[config.Language]
+    if !defined {
+        return nil, errors.New(fmt.Sprintf("boring tokens not defined for %s", config.Language))
+    }
+    
+    bannedTokensGeneric, defined := bannedTokensGenericByLanguage[config.Language]
+    if !defined {
+        return nil, errors.New(fmt.Sprintf("banned tokens not defined for %s", config.Language))
+    }
+    bannedDictionary, err := prepareBannedDictionary(database, bannedTokensGeneric)
+    if err != nil {
+        return nil, err
+    }
+    
+    dictionary, err := prepareDictionary(database)
+    if err != nil {
+        return nil, err
+    }
+    
+    return &Context{
+        config: config,
+
+        database: database,
+        bannedDictionary: bannedDictionary,
+        dictionary: dictionary,
+        boringTokens: boringTokens,
+    }, nil
+}
+
 func (c *Context) GetLanguage() (string) {
     return c.config.Language
 }
@@ -203,8 +239,8 @@ func (c *Context) GetTerminals(ids []int) (map[int]Terminal, error) {
 func (c *Context) IsAllowed(s string) (bool) {
     return !c.bannedDictionary.containsBannedToken(s)
 }
-func (c *Context) GetIdBannedStatus(ids []int) (map[int]bool) {
-    return c.bannedDictionary.getIdBannedStatus(intSliceToSet(ids))
+func (c *Context) GetIdsBannedStatus(ids []int) (map[int]bool) {
+    return c.bannedDictionary.getIdsBannedStatus(intSliceToSet(ids))
 }
 
 
@@ -234,8 +270,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     if err != nil {
         return err
     }
-    //not needed anymore and this function's runtime is far from over
-    depunctuatedTokens = nil
+    depunctuatedTokens = nil //not needed anymore and this function's runtime is far from over
 
     tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdsByToken))
     for _, dt := range dictionaryTokens {
@@ -331,7 +366,7 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
     }
     filteredIds := make([]int, 0, len(ids))
     for _, id := range ids {
-        if !c.bannedDictionarygetIdBannedStatus(id) {
+        if !c.bannedDictionary.getIdBannedStatus(id) {
             filteredIds = append(filteredIds, id)
         }
     }
@@ -343,33 +378,82 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
 
 
 type ContextManager struct {
-    databaseManager databaseManager
+    contextsPath string
+    
+    databaseManager *databaseManager
 
     bannedTokensGenericByLanguage map[string][]string
     boringTokensByLanguage map[string]map[string]void
 
-    contexts map[string]Context
+    contexts map[string]*Context
 
     //used internally to control access to GetContext(), so that
     //resources like the database aren't connected multiple times
     lock sync.Mutex
 }
+func PrepareContextManager(dataPath string) (*ContextManager, error) {
+    bannedTokensGenericByLanguage := make(map[string][]string)
+    boringTokensByLanguage := make(map[string]map[string]void)
+    
+    languagesPath := filepath.Join(dataPath, "languages")
+    if files, err := ioutil.ReadDir(languagesPath); err != nil {
+        return nil, err
+    } else {
+        for _, file := range files {
+            logger.Debugf("evaluating %s...", file.Name())
+            if strings.HasSuffix(file.Name(), ".banned") {
+                if bannedTokens, err := processBannedTokens(filepath.Join(languagesPath, file.Name())); err != nil {
+                    return nil, err
+                } else {
+                    bannedTokensGenericByLanguage[file.Name()[:len(file.Name()) - 7]] = bannedTokens
+                }
+            } else if strings.HasSuffix(file.Name(), ".boring") {
+                if boringTokens, err := processBoringTokens(filepath.Join(languagesPath, file.Name())); err != nil {
+                    return nil, err
+                } else {
+                    boringTokensByLanguage[file.Name()[:len(file.Name()) - 7]] = boringTokens
+                }
+            }
+        }
+    }
+    
+    contextsPath := filepath.Join(dataPath, "contexts")
+    return &ContextManager{
+        contextsPath: contextsPath,
+        
+        databaseManager: prepareDatabaseManager(contextsPath),
+        
+        bannedTokensGenericByLanguage: bannedTokensGenericByLanguage,
+        boringTokensByLanguage: boringTokensByLanguage,
+        
+        contexts: make(map[string]*Context),
+    }, nil
+}
 func (cm *ContextManager) Close() {
+    cm.lock.Lock()
+    defer cm.lock.Unlock()
+    
     cm.databaseManager.Close()
-    cm.contexts = make(map[string]Context)
+    cm.contexts = make(map[string]*Context)
 }
 func (cm *ContextManager) GetContext(contextId string) (*Context, error) {
     cm.lock.Lock()
     defer cm.lock.Unlock()
 
-    return nil, nil
-}
-
-//function to get contexts
-//nothing except "GetContext()"; contexts need to be defined
-//by creating a JSON file on disk.
-
-
-//Only used to cause compilation of this package
-func Test(s string){
+    if context, defined := cm.contexts[contextId]; defined {
+        return context, nil
+    }
+    
+    if context, err := prepareContext(
+        cm.contextsPath,
+        contextId,
+        cm.databaseManager,
+        cm.bannedTokensGenericByLanguage,
+        cm.boringTokensByLanguage,
+    ); err == nil {
+        cm.contexts[contextId] = context
+        return context, nil
+    } else {
+        return nil, err
+    }
 }

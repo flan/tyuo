@@ -29,7 +29,7 @@ func processBoringTokens(listPath string) (map[string]void, error) {
     if err := scanner.Err(); err != nil {
         return nil, err
     }
-    logger.Debugf("loaded {} language-level boring tokens", len(output))
+    logger.Debugf("loaded %d language-level boring tokens", len(output))
     return output, nil
 }
 

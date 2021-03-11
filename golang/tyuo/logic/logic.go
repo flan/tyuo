@@ -1,4 +1,8 @@
 package logic
+import (
+    "github.com/flan/tyuo/context"
+    "github.com/flan/tyuo/logic/language"
+)
 //when generating paths from the top level, run each searchBranch in its
 //own goroutine, so there should be ten in the base case, all doing reads
 //on the database; this should be fine, since only one request can be served
@@ -28,3 +32,39 @@ package logic
 //if there are no viable chains after scoring, then do N forward and reverse
 //walks from the start and end positions, score them, and return that
 
+func Speak(ctx *context.Context, input string) ([][]string) {
+    ctx.Lock.RLock()
+    defer ctx.Lock.RUnlock()
+    
+    logger.Debugf("%s", input)
+    tokens, learnable := language.Parse(input, false, ctx)
+    logger.Debugf("learnable: %t", learnable)
+    logger.Debugf("parsed tokens: %v", tokens)
+    return [][]string{
+        []string{"hi"},
+    }
+    
+    //EnumerateKeytokenIds is used to filter key-tokens
+}
+
+func Learn(ctx *context.Context, input []string) (int) {
+    ctx.Lock.Lock()
+    defer ctx.Lock.Unlock()
+    
+    linesLearned := 0
+    for _, inputLine := range input {
+        logger.Debugf("%s", inputLine)
+        tokens, learnable := language.Parse(inputLine, true, ctx)
+        logger.Debugf("learnable: %t", learnable)
+        logger.Debugf("parsed tokens: %v", tokens)
+        
+        if learnable && len(tokens) > 0 {
+            if err := ctx.LearnInput(tokens); err != nil {
+                logger.Errorf("unable to learn input: %s", err)
+            } else {
+                linesLearned++
+            }
+        }
+    }
+    return linesLearned
+}

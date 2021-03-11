@@ -55,27 +55,31 @@ func main() {
             logger.Criticalf("unable to determine user details: %s", err)
             os.Exit(1)
         }
-        dataPath = filepath.Join(homeDir, ".tyuo/contexts")
+        dataPath = filepath.Join(homeDir, ".tyuo")
     } else {
         dataPath = *dataDir
     }
     
     
     fmt.Println(dataPath)
-    context.Test(dataPath)
     language.Test(dataPath)
     
-    //prepare contextmanager based on datapath
     
+    contextManager, err := context.PrepareContextManager(dataPath)
+    if err != nil {
+        panic(err)
+    }
     
     shutdownChannel := make(chan string, 1)
     
     setupSignals(shutdownChannel)
     
-    httpShutdownChannel := service.RunForever(shutdownChannel, nil/*contextmanager*/)
+    httpShutdownChannel := service.RunForever(shutdownChannel, contextManager)
     
     logger.Infof("beginning normal operation...")
     logger.Warningf("system shutting down: %s...", <-shutdownChannel)
     
     httpShutdownChannel<- true
+    
+    contextManager.Close()
 }

@@ -5,9 +5,9 @@ import (
     "flag"
     "fmt"
     "github.com/4kills/go-zlib"
-    "os"
     "path/filepath"
     "strings"
+    "sync"
     "time"
 
     _ "github.com/mattn/go-sqlite3"
@@ -223,7 +223,7 @@ func prepareDatabase(
         connection.Close()
         return nil, err
     }
-    //since only lower-case matches occur, make comparisons more efficient
+    //since only case-sensitive matches are intended, make comparisons more efficient
     if _, err = connection.Exec("PRAGMA case_sensitive_like = TRUE"); err != nil {
         connection.Close()
         return nil, err
@@ -462,15 +462,16 @@ func (db *database) dictionarySetTokens(tokens []DictionaryToken, rescaleThresho
     return tx.Commit()
 }
 func (db *database) dictionaryGetNextIdentifier() (int, error) {
-    var maxIdentifier = undefinedDictionaryId //lowest allowable identifier, used to initialise dictionaries
+    var maxIdentifier sql.NullInt64
     const query = "SELECT MAX(id) FROM dictionary"
     row := db.connection.QueryRow(query)
     if err := row.Scan(&maxIdentifier); err != nil {
-        if err != sql.ErrNoRows {
-            return maxIdentifier, err
-        }
+        return 0, err
     }
-    return maxIdentifier + 1, nil
+    if maxIdentifier.Valid {
+        return int(maxIdentifier.Int64) + 1, nil
+    }
+    return undefinedDictionaryId, nil //lowest allowable identifier, used to initialise dictionaries
 }
 
 
@@ -786,7 +787,9 @@ func serialiseTransitionsJSONZLIB(specs map[int]transitionSpec) ([]byte) {
     if buffer, err := json.Marshal(destructuredData); err == nil {
         writer := zlib.NewWriter(nil)
         defer writer.Close()
-        if compressed, err := writer.WriteBuffer(buffer, nil); err == nil {
+        //HACK: when dealing with very small numbers of transitions, the zlib header will make the data bigger;
+        //overallocate the buffer to avoid problems with the C interface, which naively assumes it will always shrink
+        if compressed, err := writer.WriteBuffer(buffer, make([]byte, len(buffer) * 2)); err == nil {
             return compressed
         } else {
             logger.Warningf("unable to compress transitions; reinitialising state: %s", err)
@@ -819,7 +822,7 @@ func (db *database) digramsGet(
     SELECT
         transitionsJSONZLIB
     FROM
-        digrams_{}
+        digrams_%s
     WHERE
         dictionaryIdFirst = ?1
     LIMIT 1
@@ -913,7 +916,7 @@ func (db *database) trigramsGet(
     SELECT
         transitionsJSONZLIB
     FROM
-        trigrams_{}
+        trigrams_%s
     WHERE
         dictionaryIdFirst = ?1 AND
         dictionaryIdSecond = ?2
@@ -1007,7 +1010,7 @@ func (db *database) trigramsGetOnlyFirst(
         dictionaryIdSecond,
         transitionsJSONZLIB
     FROM
-        trigrams_{}
+        trigrams_%s
     WHERE
         dictionaryIdFirst = ?1
     ORDER BY RANDOM()
@@ -1050,7 +1053,7 @@ func (db *database) quadgramsGet(
     SELECT
         transitionsJSONZLIB
     FROM
-        quadgrams_{}
+        quadgrams_%s
     WHERE
         dictionaryIdFirst = ?1 AND
         dictionaryIdSecond = ?2 AND
@@ -1149,7 +1152,7 @@ func (db *database) quadgramsGetOnlyFirst(
         dictionaryIdThird,
         transitionsJSONZLIB
     FROM
-        quadgrams_{}
+        quadgrams_%s
     WHERE
         dictionaryIdFirst = ?1
     ORDER BY RANDOM()
@@ -1194,7 +1197,7 @@ func (db *database) quintgramsGet(
     SELECT
         transitionsJSONZLIB
     FROM
-        quintgrams_{}
+        quintgrams_%s
     WHERE
         dictionaryIdFirst = ?1 AND
         dictionaryIdSecond = ?2 AND
@@ -1298,7 +1301,7 @@ func (db *database) quintgramsGetOnlyFirst(
         dictionaryIdFourth,
         transitionsJSONZLIB
     FROM
-        quintgrams_{}
+        quintgrams_%s
     WHERE
         dictionaryIdFirst = ?1
     ORDER BY RANDOM()
@@ -1338,6 +1341,8 @@ type databaseManager struct {
     dbDir string
     
     databases map[string]*database
+    
+    lock sync.Mutex
 }
 func prepareDatabaseManager(dbDir string) (*databaseManager) {
     return &databaseManager{
@@ -1347,6 +1352,9 @@ func prepareDatabaseManager(dbDir string) (*databaseManager) {
     }
 }
 func (dbm *databaseManager) Close() {
+    dbm.lock.Lock()
+    defer dbm.lock.Unlock()
+    
     logger.Debugf("closing databases...")
     for _, database := range dbm.databases {
         database.Close();
@@ -1354,10 +1362,19 @@ func (dbm *databaseManager) Close() {
     dbm.databases = make(map[string]*database)
 }
 func (dbm *databaseManager) Load(contextId string) (*database, error) {
-    logger.Infof("loading database {}...", contextId)
+    dbm.lock.Lock()
+    defer dbm.lock.Unlock()
+    
+    if database, defined := dbm.databases[contextId]; defined {
+        return database, nil
+    }
+    
+    logger.Infof("loading database %s...", contextId)
     dbPath := filepath.Join(dbm.dbDir, contextId + ".sqlite3")
-    if _, err := os.Stat(dbPath); err != nil {
+    if database, err := prepareDatabase(dbPath); err == nil {
+        dbm.databases[contextId] = database
+        return database, nil
+    } else {
         return nil, err
     }
-    return prepareDatabase(dbPath)
 }

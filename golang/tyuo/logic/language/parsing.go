@@ -54,6 +54,7 @@ func lex(
                 currentToken = make([]rune, 0, maxTokenLength)
             }
             currentTokenValid = true
+            continue
         }
         
         if _, isCharacter := characters[r]; !isCharacter {

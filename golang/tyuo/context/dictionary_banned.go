@@ -29,7 +29,7 @@ func processBannedTokens(listPath string) ([]string, error) {
     if err := scanner.Err(); err != nil {
         return nil, err
     }
-    logger.Debugf("loaded {} language-level banned tokens", len(output))
+    logger.Debugf("loaded %d language-level banned tokens", len(output))
     return output, nil
 }
 
@@ -61,8 +61,8 @@ func prepareBannedDictionary(
     } else {
         return nil, err
     }
-    logger.Debugf("loaded {} banned tokens", len(bannedTokens))
-    logger.Debugf("loaded {} banned IDs", len(bannedIds))
+    logger.Debugf("loaded %d banned tokens", len(bannedTokens))
+    logger.Debugf("loaded %d banned IDs", len(bannedIds))
 
     //enumerate the IDs of anything in the dictionary that predated additions to the language-level ban-list
     bannedIdsGeneric := make(map[int]void)
@@ -73,7 +73,7 @@ func prepareBannedDictionary(
     } else {
         return nil, err
     }
-    logger.Debugf("identified {} IDs mapped to banned language-level tokens", len(bannedIdsGeneric))
+    logger.Debugf("identified %d IDs mapped to banned language-level tokens", len(bannedIdsGeneric))
 
     return &bannedDictionary{
         database: database,

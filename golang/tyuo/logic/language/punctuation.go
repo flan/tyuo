@@ -103,7 +103,7 @@ func punctuationDissect(token []rune) (context.ParsedToken, context.ParsedToken,
     if len(currentToken) > 0 {
         token = token[len(currentToken):]
         parsedToken := punctuationDigest(string(currentToken))
-        if parsedToken == nullToken {
+        if parsedToken != nullToken {
             punctuationBefore = parsedToken
         } else {
             return punctuationBefore, punctuationAfter, token, false
@@ -127,7 +127,7 @@ func punctuationDissect(token []rune) (context.ParsedToken, context.ParsedToken,
     if len(currentToken) > 0 {
         token = token[:len(token) - len(currentToken)]
         parsedToken := punctuationDigest(string(currentToken))
-        if parsedToken == nullToken {
+        if parsedToken != nullToken {
             punctuationAfter = parsedToken
         } else {
             return punctuationBefore, punctuationAfter, token, false

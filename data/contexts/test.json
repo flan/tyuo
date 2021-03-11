@@ -1,0 +1,34 @@
+{
+    "Language": "english",
+    "Ngrams": {
+        "Digrams": true,
+        "Trigrams": true,
+        "Quadgrams": true,
+        "Quintgrams": true
+    },
+    "Learning": {
+        "MinTokenCount": 10,
+        "MaxTokenLength": 13,
+
+        "MaxAge": 31536000,
+
+        "RescaleThreshold": 1000,
+        "RescaleDecimator": 3
+    },
+    "Production": {
+        "SearchBranchesInitial": 4,
+        "SearchBranchesChildren": 10,
+
+        "MinLength": 5,
+        "MaxLength": 30,
+        "StopProbability": 0.125,
+
+        "TargetMinLength": 8,
+        "TargetMaxLength": 16,
+        "TargetStopProbability": 0.25,
+
+        "BaseRepresentationThreshold": 0.9,
+        
+        "SurpriseWeight": 0.5
+    }
+}
