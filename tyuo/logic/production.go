@@ -17,7 +17,7 @@ func produceNgram(ctx *context.Context, path production, forward bool) ([]produc
 }
 
 //picks ID as starting points and produces a slice of productions
-func produceFromKeytoken(ctx *context.Context, ids []int) ([]production, error) {
+func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
     //use goroutines liberally
     
     //for each ID, spawn a bunch of forward and backwards searches

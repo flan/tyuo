@@ -26,7 +26,7 @@ func Speak(ctx *context.Context, input string) ([][]string) {
     if len(keytokenIds) > 0 {
         //select a subset of the keytokens, to whatever threshold the context wants
         
-        productions, err := produceFromKeytoken(ctx, keytokenIds)
+        productions, err := produceFromKeytokens(ctx, keytokenIds)
         if err != nil {
             logger.Errorf("unable to build productions: %s", err)
             return nil
