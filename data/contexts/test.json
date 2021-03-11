@@ -16,8 +16,9 @@
         "RescaleDecimator": 3
     },
     "Production": {
-        "SearchBranchesInitial": 4,
-        "SearchBranchesChildren": 10,
+        "TokensInitial": 2,
+        "SearchBranchesInitial": 3,
+        "SearchBranchesChildren": 8,
 
         "MinLength": 5,
         "MaxLength": 30,

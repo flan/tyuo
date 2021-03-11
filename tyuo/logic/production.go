@@ -3,10 +3,41 @@ import (
     "github.com/flan/tyuo/context"
 )
 
-//picks suitable IDs as starting points and produces a slice of productions
-func produce(ctx *context.Context, ids []int) ([]production, error) {
+func produceOrigin(ctx *context.Context, id int, forward bool) ([]production, error) {
     
+    //use goroutines sparingly
+    
+    return nil, nil
+}
+func produceNgram(ctx *context.Context, path production, forward bool) ([]production, error) {
+    
+    //use goroutines sparingly
+    
+    return nil, nil
+}
+
+//picks ID as starting points and produces a slice of productions
+func produceFromKeytoken(ctx *context.Context, ids []int) ([]production, error) {
     //use goroutines liberally
+    
+    //for each ID, spawn a bunch of forward and backwards searches
+    //if there are fewer IDs that desired for the initial search, pick
+    //more origin n-grams to fill out the range
+    //for each forward search that produces a result, do a backwards
+    //n-gram search; likewise in the other direction
+    //maybe this could use a channel so there's a constant pipeline
+    
+    //it could probably be a workerpool on the channel
+    //https://gobyexample.com/worker-pools
+    
+    return nil, nil
+}
+
+//picks ID as starting points and produces a slice of productions
+func produceFromTerminals(ctx *context.Context, terminalIdsForward []int, terminalIdsReverse []int) ([]production, error) {
+    //use goroutines liberally
+    
+    //for each ID, do a search in that direction and return whatever comes back
     
     return nil, nil
 }

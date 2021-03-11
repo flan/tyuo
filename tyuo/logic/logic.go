@@ -22,23 +22,47 @@ func Speak(ctx *context.Context, input string) ([][]string) {
         return nil
     }
     
-    productions, err := produce(ctx, keytokenIds)
-    if err != nil {
-        logger.Errorf("unable to build productions: %s", err)
-        return nil
+    var scoredProductions [][]production = nil
+    if len(keytokenIds) > 0 {
+        //select a subset of the keytokens, to whatever threshold the context wants
+        
+        productions, err := produceFromKeytoken(ctx, keytokenIds)
+        if err != nil {
+            logger.Errorf("unable to build productions: %s", err)
+            return nil
+        }
+        scoredProductions, err = score(ctx, productions)
+        if err != nil {
+            logger.Errorf("unable to score productions: %s", err)
+            return nil
+        }
     }
-    scoredProductions, err := score(ctx, productions)
-    if err != nil {
-        logger.Errorf("unable to score productions: %s", err)
-        return nil
-    }
-    assembly, err := assemble(ctx, scoredProductions)
-    if err != nil {
-        logger.Errorf("unable to assemble productions: %s", err)
-        return nil
+    if len(scoredProductions) == 0 { //either no keytokens or no sufficiently good productions
+        //select some terminals
+        var terminalIdsForward int[] = nil
+        var terminalIdsReverse int[] = nil
+        
+        productions, err := produceFromTerminals(ctx, terminalIdsForward, terminalIdsReverse)
+        if err != nil {
+            logger.Errorf("unable to build productions: %s", err)
+            return nil
+        }
+        scoredProductions, err = score(ctx, productions)
+        if err != nil {
+            logger.Errorf("unable to score productions: %s", err)
+            return nil
+        }
     }
     
-    return assembly
+    if len(scoredProductions) > 0 {
+        assembled, err := assemble(ctx, scoredProductions)
+        if err != nil {
+            logger.Errorf("unable to assemble productions: %s", err)
+            return nil
+        }
+        return assembled, nil
+    }
+    return make([][]string, 0), nil
 }
 
 func Learn(ctx *context.Context, input []string) (int) {

@@ -66,10 +66,12 @@ type contextConfigLearning struct {
     RescaleDecimator int //should probably be 3
 }
 type contextConfigProduction struct {
+    //the number of keytokens or terminals to choose before starting a search
+    TokensInitial int //try 2
     //how many paths to explore from the initial token, in both directions
-    SearchBranchesInitial int //try 4
+    SearchBranchesInitial int //try 3
     //how many paths each child should enumerate (but not necessarily explore)
-    SearchBranchesChildren int //try 10
+    SearchBranchesChildren int //try 8
 
     //the minimum number of tokens that need to be produced
     MinLength int
