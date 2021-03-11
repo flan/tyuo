@@ -1,5 +1,7 @@
 package logic
 import (
+    "runtime/debug"
+    
     "github.com/flan/tyuo/context"
     "github.com/flan/tyuo/logic/language"
 )
@@ -33,6 +35,11 @@ import (
 //walks from the start and end positions, score them, and return that
 
 func Speak(ctx *context.Context, input string) ([][]string) {
+    defer func() {
+        if r := recover(); r != nil {
+            logger.Criticalf("panic observed in Speak(): %s\n%s", r, string(debug.Stack()))
+        }
+    }()
     ctx.Lock.RLock()
     defer ctx.Lock.RUnlock()
     
@@ -48,6 +55,11 @@ func Speak(ctx *context.Context, input string) ([][]string) {
 }
 
 func Learn(ctx *context.Context, input []string) (int) {
+    defer func() {
+        if r := recover(); r != nil {
+            logger.Criticalf("panic observed in Learn(): %s\n%s", r, string(debug.Stack()))
+        }
+    }()
     ctx.Lock.Lock()
     defer ctx.Lock.Unlock()
     
@@ -66,6 +78,11 @@ func Learn(ctx *context.Context, input []string) (int) {
 }
 
 func BanSubstrings(ctx *context.Context, substrings []string) () {
+    defer func() {
+        if r := recover(); r != nil {
+            logger.Criticalf("panic observed in BanSubstrings(): %s\n%s", r, string(debug.Stack()))
+        }
+    }()
     ctx.Lock.Lock()
     defer ctx.Lock.Unlock()
     
@@ -74,6 +91,11 @@ func BanSubstrings(ctx *context.Context, substrings []string) () {
     }
 }
 func UnbanSubstrings(ctx *context.Context, substrings []string) () {
+    defer func() {
+        if r := recover(); r != nil {
+            logger.Criticalf("panic observed in UnbanSubstrings(): %s\n%s", r, string(debug.Stack()))
+        }
+    }()
     ctx.Lock.Lock()
     defer ctx.Lock.Unlock()
     

@@ -51,8 +51,7 @@ func main() {
     if *dataDir == "" {
         homeDir, err := os.UserHomeDir()
         if err != nil {
-            logger.Criticalf("unable to determine user details: %s", err)
-            os.Exit(1)
+            panic(fmt.Sprintf("unable to determine user details: %s", err))
         }
         dataPath = filepath.Join(homeDir, ".tyuo")
     } else {
