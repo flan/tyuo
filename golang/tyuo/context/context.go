@@ -231,7 +231,7 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     if err != nil {
         return err
     }
-    //not needed anymore and this function is far from over
+    //not needed anymore and this function's runtime is far from over
     depunctuatedTokens = nil
 
     tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdsByToken))
