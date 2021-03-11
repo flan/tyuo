@@ -9,6 +9,9 @@ import (
 //once a context is loaded, a database connection and the language value are
 //held in memory
 
+const LanguageEnglish = "english"
+const LanguageFrench = "français"
+
 type contextConfigNgrams struct {
     /* digrams are the simplest and fastest transition model; using them will
      * produce behaviour that is often novel, sometimes insightful,

@@ -100,9 +100,9 @@ func lex(
 func Parse(input string, learn bool, ctx *context.Context) ([]context.ParsedToken, bool) {
     var lang *languageDefinition
     switch ctx.GetLanguage() {
-        case "english":
+        case context.LanguageEnglish:
             lang = &englishLanguageDefinition
-        case "francais":
+        case context.LanguageFrench:
             lang = &frenchLanguageDefinition
         default:
             logger.Errorf("unrecognised language: %s", ctx.GetLanguage())
