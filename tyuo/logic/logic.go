@@ -5,34 +5,6 @@ import (
     "github.com/flan/tyuo/context"
     "github.com/flan/tyuo/logic/language"
 )
-//when generating paths from the top level, run each searchBranch in its
-//own goroutine, so there should be ten in the base case, all doing reads
-//on the database; this should be fine, since only one request can be served
-//by each context at any time and creation and learning are separate flows --
-//creation is strictly read-only
-
-
-//scoring logic:
-//All productions start with a score of 0
-//each test adds or removes points (typically 1 or 2) depending on how well the production
-//satisfies its requirements:
-//each primary keyword is worth one point; each secondary worth one
-//failing to meet a minimum target length will deduct a point
-//  slightly exceeding the target will award one, but greatly exceeding it will award nothing
-//a point will be deducted for every repetition of the same token above two counts
-
-//any production with a positive score is a response candidate and will be formatted
-//productions are grouped by score and returned is descending order
-
-
-
-//when producing, do N forward walks from the keyword and N reverse walks,
-//then, for each of the paths that come back (probably grouped by common
-//pattern), do a reverse-walk that looks at the full n-gram pattern and
-//combine those, rather than the two-start-from-keyword MegaHAL approach.
-
-//if there are no viable chains after scoring, then do N forward and reverse
-//walks from the start and end positions, score them, and return that
 
 func Speak(ctx *context.Context, input string) ([][]string) {
     defer func() {
@@ -43,17 +15,30 @@ func Speak(ctx *context.Context, input string) ([][]string) {
     ctx.Lock.RLock()
     defer ctx.Lock.RUnlock()
     
-    tokens, learnable := language.Parse(input, false, ctx)
-    
-    
-    
-    logger.Debugf("learnable: %t", learnable)
-    logger.Debugf("parsed tokens: %v", tokens)
-    return [][]string{
-        []string{"hi"},
+    tokens, _ := language.Parse(input, false, ctx)
+    keytokenIds, err := ctx.EnumerateKeytokenIds(tokens)
+    if err != nil {
+        logger.Errorf("unable to enumerate keytokens: %s", err)
+        return nil
     }
     
-    //EnumerateKeytokenIds is used to filter key-tokens
+    productions, err := produce(ctx, keytokenIds)
+    if err != nil {
+        logger.Errorf("unable to build productions: %s", err)
+        return nil
+    }
+    scoredProductions, err := score(ctx, productions)
+    if err != nil {
+        logger.Errorf("unable to score productions: %s", err)
+        return nil
+    }
+    assembly, err := assemble(ctx, scoredProductions)
+    if err != nil {
+        logger.Errorf("unable to assemble productions: %s", err)
+        return nil
+    }
+    
+    return assembly
 }
 
 func Learn(ctx *context.Context, input []string) (int) {

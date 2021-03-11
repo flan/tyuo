@@ -1,11 +1,31 @@
 package logic
 import (
-    "github.com/juju/loggo"
-    "math/rand"
-    "time"
+    "github.com/flan/tyuo/context"
 )
 
-var logger = loggo.GetLogger("logic")
+//picks suitable IDs as starting points and produces a slice of productions
+func produce(ctx *context.Context, ids []int) ([]production, error) {
+    
+    //use goroutines liberally
+    
+    return nil, nil
+}
+
+//when generating paths from the top level, run each searchBranch in its
+//own goroutine, so there should be ten in the base case, all doing reads
+//on the database; this should be fine, since only one request can be served
+//by each context at any time and creation and learning are separate flows --
+//creation is strictly read-only
+
+
+//when producing, do N forward walks from the keyword and N reverse walks,
+//then, for each of the paths that come back (probably grouped by common
+//pattern), do a reverse-walk that looks at the full n-gram pattern and
+//combine those, rather than the two-start-from-keyword MegaHAL approach.
+
+//if there are no viable chains after scoring, then do N forward and reverse
+//walks from the start and end positions, score them, and return that
+
 
 
 //the number of sibling-branches to consider for each node in depth-first
@@ -32,4 +52,3 @@ var logger = loggo.GetLogger("logic")
 
 //when doing a markov walk, choose anything in the keyword set first, if possible
 
-var rng = rand.New(rand.NewSource(time.Now().Unix()))
