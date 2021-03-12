@@ -27,9 +27,18 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
         return nil
     }
     
+    //number of tokens to start with for each search
+    tokensInitial := ctx.GetProductionTokensInitial()
+    
     var scoredProductions []scoredProduction = nil
     if len(keytokenIds) > 0 {
-        //select a subset of the keytokens, to whatever threshold the context wants
+        //select a random subset of the keytokens
+        rng.Shuffle(len(keytokenIds), func(i, j int){
+            keytokenIds[i], keytokenIds[j] = keytokenIds[j], keytokenIds[i]
+        })
+        if len(keytokenIds) > tokensInitial {
+            keytokenIds = keytokenIds[:tokensInitial]
+        }
         
         productions, err := produceFromKeytokens(ctx, keytokenIds)
         if err != nil {
@@ -43,9 +52,16 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
         }
     }
     if len(scoredProductions) == 0 { //either no keytokens or no sufficiently good productions
-        //select some terminals
-        var terminalIdsForward []int = nil
-        var terminalIdsReverse []int = nil
+        terminalIdsForward, err := ctx.GetTerminaStarterlIds(tokensInitial / 2, true)
+        if err != nil {
+            logger.Errorf("unable to enumerate forward terminals: %s", err)
+            return nil
+        }
+        terminalIdsReverse, err := ctx.GetTerminaStarterlIds(tokensInitial - len(terminalIdsForward), false)
+        if err != nil {
+            logger.Errorf("unable to enumerate reverse terminals: %s", err)
+            return nil
+        }
         
         productions, err := produceFromTerminals(ctx, terminalIdsForward, terminalIdsReverse)
         if err != nil {

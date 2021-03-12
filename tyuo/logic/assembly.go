@@ -17,3 +17,10 @@ func assemble(ctx *context.Context, scoredProductions []scoredProduction) ([]ass
     
     return nil, nil
 }
+
+
+/*
+    //if a token is represented in its base form at least this often,
+    //choose that; otherwise, choose the most popular variant
+    BaseRepresentationThreshold float32 //0.9 is a good starting point
+    */

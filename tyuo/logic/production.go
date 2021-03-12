@@ -42,6 +42,35 @@ func produceFromTerminals(ctx *context.Context, terminalIdsForward []int, termin
     return nil, nil
 }
 
+/*
+    //how many paths to explore from the initial token, in both directions
+    SearchBranchesInitial int //try 3
+    //how many paths each child should enumerate (but not necessarily explore)
+    SearchBranchesChildren int //try 8
+
+    //the minimum number of tokens that need to be produced
+    MinLength int
+    //the upper limit on how long a production can be
+    MaxLength int
+    //the likelihood of stopping production, upon finding a terminal,
+    //before reaching the target range
+    StopProbability float32
+
+    //the minimum desired length of a production
+    TargetMinLength int
+    //the maximum desired length of a production
+    TargetMaxLength int
+    //the likelihood of stopping production, upon finding a terminal,
+    //after reaching the target range
+    TargetStopProbability float32
+    //NOTE: for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
+*/
+    
+
+
+
+
+
 //when generating paths from the top level, run each searchBranch in its
 //own goroutine, so there should be ten in the base case, all doing reads
 //on the database; this should be fine, since only one request can be served

@@ -34,3 +34,15 @@ func score(ctx *context.Context, productions []production) ([]scoredProduction, 
 
 
 //if surprise is enabled, also include that value; otherwise, set surprise to 0.0
+
+
+/*
+    //enabling this calculates surprise for each production, similar to how
+    //MegaHAL works to try to choose the most original response from its generations;
+    //this is in addition to tyuo's own scoring model, and it's up to the caller
+    //to decide which response to display (probably highest scored, tie-broken by
+    //highest surprise in most cases)
+    //turning surprise on incurs two linear n-gram lookups at the lowest-enabled level, so
+    //it may be worth disabling if milliseconds matter
+    CalculateSurprise bool
+    */

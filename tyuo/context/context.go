@@ -207,13 +207,19 @@ func (c *Context) AreQuintgramsEnabled() (bool) {
     return c.config.Ngrams.Quintgrams
 }
 
-
 func (c *Context) BanSubstrings(substrings []string) (error) {
     return c.bannedDictionary.ban(stringSliceToSet(substrings))
 }
 func (c *Context) UnbanSubstrings(substrings []string) (error) {
     return c.bannedDictionary.unban(stringSliceToSet(substrings))
 }
+
+func (c *Context) GetProductionTokensInitial() (int) {
+    return c.config.Production.TokensInitial
+}
+
+
+
 
 
 func (c *Context) getOldestAllowedTime() (int64) {
@@ -226,6 +232,15 @@ func (c *Context) GetTerminals(ids []int) (map[int]Terminal, error) {
         c.getOldestAllowedTime(),
     )
 }
+func (c *Context) GetTerminaStarterlIds(count int, forward bool) ([]int, error) {
+    return c.database.terminalsGetStarters(
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+
 //TODO: define other paths for n-gram database access
 
 
