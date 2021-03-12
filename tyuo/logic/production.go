@@ -16,8 +16,38 @@ func produceNgram(ctx *context.Context, path production, forward bool) ([]produc
     return nil, nil
 }
 
+
+
+
+
+
+func produceFromNgram(ctx *context.Context, path production, forward bool, results chan<- production) {
+    
+    
+    
+}
+
+func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, forward bool, results chan<- production) {
+    //deal with errors in here
+    //each instance spawns no goroutines, so respect the stack
+    
+    recursively call produceFromNgram
+}
+
+
+
+
+
+
 //picks ID as starting points and produces a slice of productions
 func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
+    //generate the initial ngrams based on the selected tokens
+    //then create the results channel and kick off a goroutine for each entity,
+    //possibly using a workerpool
+    
+    ctx.GetMaxParallelOperations()
+    
+    
     //use goroutines liberally
     
     //for each ID, spawn a bunch of forward and backwards searches

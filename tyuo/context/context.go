@@ -66,6 +66,10 @@ type contextConfigLearning struct {
     RescaleDecimator int //should probably be 3
 }
 type contextConfigProduction struct {
+    //the maximum number of operations to run in parallel at any stage in the
+    //production pipeline
+    MaxParallelOperations int
+    
     //the number of keytokens or terminals to choose before starting a search
     TokensInitial int //try 2
     //how many paths to explore from the initial token, in both directions
@@ -217,7 +221,9 @@ func (c *Context) UnbanSubstrings(substrings []string) (error) {
 func (c *Context) GetProductionTokensInitial() (int) {
     return c.config.Production.TokensInitial
 }
-
+func (c *Context) GetMaxParallelOperations() (int) {
+    return c.config.Production.MaxParallelOperations
+}
 
 
 
