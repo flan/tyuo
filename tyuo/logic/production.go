@@ -35,18 +35,87 @@ func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, fo
 }
 
 
+func produceStarters(ctx *context.Context, id int, forward bool) ([]production, error) {
+    
+    
+    
+    
+    func (c *Context) GetQuintgramsOrigin(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+) ([]Quintgram, error) {
+    return c.database.quintgramsGetOnlyFirst(
+        dictionaryIdFirst,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+    
+    
+    
+    
+    func (c *Context) GetQuadgramsOrigin(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+) ([]Quadgram, error) {
+    return c.database.quadgramsGetOnlyFirst(
+        dictionaryIdFirst,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+    
+    
+    
+    
+    func (c *Context) GetTrigramsOrigin(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+) ([]Trigram, error) {
+    return c.database.trigramsGetOnlyFirst(
+        dictionaryIdFirst,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
 
+
+    origin Digrams are just a special case of GetDigrams():
+    first = target ID
+    if len(results) == 1, then something was found
+    
+
+    
+}
 
 
 
 //picks ID as starting points and produces a slice of productions
 func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
+    
+    
+    
     //generate the initial ngrams based on the selected tokens
     //then create the results channel and kick off a goroutine for each entity,
     //possibly using a workerpool
     
     ctx.GetMaxParallelOperations()
     
+    //create a slice of channels for each goroutine and just iterate over that slice,
+    //consuming each one until it's closed
+    //this will ensure each is able to run to completion and it won't matter if one
+    //finishes early
+    //when consuming the output, it can be fed into the next channel immediately,
+    //even if the goroutines to consume it haven't yet begun
+    
+    //there'll probably be some sensible way to split the pool, too, once implementation
+    //starts
     
     //use goroutines liberally
     
@@ -63,11 +132,66 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     return nil, nil
 }
 
+
+
+func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, error) {
+    
+    
+    func (c *Context) GetQuintgramsFromBoundary(
+    dictionaryIdSecond int,
+    count int,
+    forward bool,
+) ([]Quintgram, error) {
+    return c.database.quintgramsGetFromBoundary(
+        dictionaryIdSecond,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+    
+    func (c *Context) GetQuadgramsFromBoundary(
+    dictionaryIdSecond int,
+    count int,
+    forward bool,
+) ([]Quintgram, error) {
+    return c.database.quadgramsGetFromBoundary(
+        dictionaryIdSecond,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+    
+    boundary trigrams are just a special case of GetTrigrams():
+    first = context.BoundaryId
+    second = target trigram
+    if len(result) == 1 then a match was found
+    
+    
+    boundary digrams are just a special case of GetDigrams():
+    first = context.BoundaryId
+    if len(result) == 1 then a match was found (which should always happen)
+    
+}
+
+
 //picks ID as starting points and produces a slice of productions
-func produceFromTerminals(ctx *context.Context, terminalIdsForward []int, terminalIdsReverse []int) ([]production, error) {
+func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward int, countReverse int) ([]production, error) {
     //use goroutines liberally
     
+    //query for n-grams in desending order using the terminal ID
+    
     //for each ID, do a search in that direction and return whatever comes back
+    
+    keytokenIdsSet := make(map[int]bool, len(keytokenIds))
+    for _, id := range keytokenIds {
+        keytokenIdsSet[id] = false
+    }
+    //at each step, if a keytoken is found, copy the set without it and pick that branch;
+    //otherwise, just pass the set forward until the walk ends
     
     return nil, nil
 }
@@ -142,3 +266,52 @@ func produceFromTerminals(ctx *context.Context, terminalIdsForward []int, termin
 
 //when doing a markov walk, choose anything in the keyword set first, if possible
 
+/*
+
+func (c *Context) GetDigrams(
+    specs map[DigramSpec]bool,
+    forward bool,
+) (map[DigramSpec]Digram, error) {
+    return c.database.digramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+
+func (c *Context) GetTrigrams(
+    specs map[TrigramSpec]bool,
+    forward bool,
+) (map[TrigramSpec]Trigram, error) {
+    return c.database.trigramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+
+func (c *Context) GetQuadgrams(
+    specs map[QuadgramSpec]bool,
+    forward bool,
+) (map[QuadgramSpec]Quadgram, error) {
+    return c.database.quadgramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+
+func (c *Context) GetQuintgrams(
+    specs map[QuintgramSpec]bool,
+    forward bool,
+) (map[QuintgramSpec]Quintgram, error) {
+    return c.database.quintgramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+*/

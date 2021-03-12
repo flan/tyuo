@@ -4,16 +4,6 @@ import (
     "time"
 )
 
-type Terminal struct {
-    dictionaryId int
-    
-    Forward bool
-    Reverse bool
-}
-func (t *Terminal) GetDictionaryId() (int) {
-    return t.dictionaryId
-}
-
 
 type transitionSpec struct {
     occurrences int
@@ -228,28 +218,6 @@ func (g *Quintgram) CalculateSurprise(dictionaryId int) (float64) {
 
 
 
-func learnTerminals(
-    database *database,
-    forwardId int,
-    reverseId int,
-) (error) {
-    return database.terminalsSetStatus([]Terminal{
-        Terminal{
-            dictionaryId: forwardId,
-            Forward: true,
-            Reverse: false,
-        },
-        Terminal{
-            dictionaryId: reverseId,
-            Forward: false,
-            Reverse: true,
-        },
-    })
-}
-
-
-
-
 func learnDigramsForward(
     database *database,
     tokens []string,
@@ -258,7 +226,12 @@ func learnDigramsForward(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[DigramSpec]bool, len(tokens))
+    specOrigin := DigramSpec{
+        DictionaryIdFirst: BoundaryId,
+    }
+    
+    specs := make(map[DigramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := 0; i < len(tokens); i++ {
         specs[DigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -270,12 +243,16 @@ func learnDigramsForward(
         return err
     }
     
+    digram := digrams[specOrigin]
+    digram.increment(BoundaryId)
+    
     for i := 0; i < len(tokens) - 1; i++ {
         digram := digrams[DigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
         }]
         digram.increment(tokensMap[tokens[i + 1]])
     }
+    
     digram := digrams[DigramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 1]],
     }]
@@ -291,7 +268,12 @@ func learnDigramsReverse(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[DigramSpec]bool, len(tokens))
+    specOrigin := DigramSpec{
+        DictionaryIdFirst: BoundaryId,
+    }
+    
+    specs := make(map[DigramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := len(tokens) - 1; i >= 0; i-- {
         specs[DigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -303,12 +285,16 @@ func learnDigramsReverse(
         return err
     }
     
+    digram := digrams[specOrigin]
+    digram.increment(BoundaryId)
+    
     for i := len(tokens) - 1; i >= 1; i-- {
         digram := digrams[DigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
         }]
         digram.increment(tokensMap[tokens[i - 1]])
     }
+    
     digram := digrams[DigramSpec{
         DictionaryIdFirst: tokensMap[tokens[0]],
     }]
@@ -359,7 +345,13 @@ func learnTrigramsForward(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[TrigramSpec]bool, len(tokens))
+    specOrigin := TrigramSpec{
+        DictionaryIdFirst: BoundaryId,
+        DictionaryIdSecond: tokensMap[tokens[0]],
+    }
+    
+    specs := make(map[TrigramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := 0; i < len(tokens) - 1; i++ {
         specs[TrigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -372,6 +364,9 @@ func learnTrigramsForward(
         return err
     }
     
+    trigram := trigrams[specOrigin]
+    trigram.increment(BoundaryId)
+    
     for i := 0; i < len(tokens) - 2; i++ {
         trigram := trigrams[TrigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -379,6 +374,7 @@ func learnTrigramsForward(
         }]
         trigram.increment(tokensMap[tokens[i + 2]])
     }
+    
     trigram := trigrams[TrigramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 2]],
         DictionaryIdSecond: tokensMap[tokens[len(tokens) - 1]],
@@ -395,7 +391,13 @@ func learnTrigramsReverse(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[TrigramSpec]bool, len(tokens))
+    specOrigin := TrigramSpec{
+        DictionaryIdFirst: BoundaryId,
+        DictionaryIdSecond: tokensMap[tokens[len(tokens) - 1]],
+    }
+    
+    specs := make(map[TrigramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := len(tokens) - 1; i >= 1; i-- {
         specs[TrigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -408,6 +410,9 @@ func learnTrigramsReverse(
         return err
     }
     
+    trigram := trigrams[specOrigin]
+    trigram.increment(BoundaryId)
+    
     for i := len(tokens) - 1; i >= 2; i-- {
         trigram := trigrams[TrigramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -415,6 +420,7 @@ func learnTrigramsReverse(
         }]
         trigram.increment(tokensMap[tokens[i - 2]])
     }
+    
     trigram := trigrams[TrigramSpec{
         DictionaryIdFirst: tokensMap[tokens[1]],
         DictionaryIdSecond: tokensMap[tokens[0]],
@@ -465,7 +471,14 @@ func learnQuadgramsForward(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[QuadgramSpec]bool, len(tokens))
+    specOrigin := QuadgramSpec{
+        DictionaryIdFirst: BoundaryId,
+        DictionaryIdSecond: tokensMap[tokens[0]],
+        DictionaryIdThird: tokensMap[tokens[1]],
+    }
+    
+    specs := make(map[QuadgramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := 0; i < len(tokens) - 2; i++ {
         specs[QuadgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -479,6 +492,9 @@ func learnQuadgramsForward(
         return err
     }
     
+    quadgram := quadgrams[specOrigin]
+    quadgram.increment(BoundaryId)
+    
     for i := 0; i < len(tokens) - 3; i++ {
         quadgram := quadgrams[QuadgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -487,6 +503,7 @@ func learnQuadgramsForward(
         }]
         quadgram.increment(tokensMap[tokens[i + 3]])
     }
+    
     quadgram := quadgrams[QuadgramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 3]],
         DictionaryIdSecond: tokensMap[tokens[len(tokens) - 2]],
@@ -504,7 +521,14 @@ func learnQuadgramsReverse(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[QuadgramSpec]bool, len(tokens))
+    specOrigin := QuadgramSpec{
+        DictionaryIdFirst: BoundaryId,
+        DictionaryIdSecond: tokensMap[tokens[len(tokens) - 1]],
+        DictionaryIdThird: tokensMap[tokens[len(tokens) - 2]],
+    }
+    
+    specs := make(map[QuadgramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := len(tokens) - 1; i >= 2; i-- {
         specs[QuadgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -518,6 +542,9 @@ func learnQuadgramsReverse(
         return err
     }
     
+    quadgram := quadgrams[specOrigin]
+    quadgram.increment(BoundaryId)
+    
     for i := len(tokens) - 1; i >= 3; i-- {
         quadgram := quadgrams[QuadgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -526,6 +553,7 @@ func learnQuadgramsReverse(
         }]
         quadgram.increment(tokensMap[tokens[i - 3]])
     }
+    
     quadgram := quadgrams[QuadgramSpec{
         DictionaryIdFirst: tokensMap[tokens[2]],
         DictionaryIdSecond: tokensMap[tokens[1]],
@@ -578,7 +606,15 @@ func learnQuintgramsForward(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[QuintgramSpec]bool, len(tokens))
+    specOrigin := QuintgramSpec{
+        DictionaryIdFirst: BoundaryId,
+        DictionaryIdSecond: tokensMap[tokens[0]],
+        DictionaryIdThird: tokensMap[tokens[1]],
+        DictionaryIdFourth: tokensMap[tokens[2]],
+    }
+    
+    specs := make(map[QuintgramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := 0; i < len(tokens) - 3; i++ {
         specs[QuintgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -593,6 +629,9 @@ func learnQuintgramsForward(
         return err
     }
     
+    quintgram := quintgrams[specOrigin]
+    quintgram.increment(BoundaryId)
+    
     for i := 0; i < len(tokens) - 4; i++ {
         quintgram := quintgrams[QuintgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -602,7 +641,8 @@ func learnQuintgramsForward(
         }]
         quintgram.increment(tokensMap[tokens[i + 4]])
     }
-    quintgram := quintgrams[QuintgramSpec{
+    
+    quintgram = quintgrams[QuintgramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 4]],
         DictionaryIdSecond: tokensMap[tokens[len(tokens) - 3]],
         DictionaryIdThird: tokensMap[tokens[len(tokens) - 2]],
@@ -620,7 +660,15 @@ func learnQuintgramsReverse(
     rescaleThreshold int,
     rescaleDecimator int,
 ) (error) {
-    specs := make(map[QuintgramSpec]bool, len(tokens))
+    specOrigin := QuintgramSpec{
+        DictionaryIdFirst: BoundaryId,
+        DictionaryIdSecond: tokensMap[tokens[len(tokens) - 1]],
+        DictionaryIdThird: tokensMap[tokens[len(tokens) - 2]],
+        DictionaryIdFourth: tokensMap[tokens[len(tokens) - 3]],
+    }
+    
+    specs := make(map[QuintgramSpec]bool, len(tokens) + 1)
+    specs[specOrigin] = false
     for i := len(tokens) - 1; i >= 3; i-- {
         specs[QuintgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -635,6 +683,9 @@ func learnQuintgramsReverse(
         return err
     }
     
+    quintgram := quintgrams[specOrigin]
+    quintgram.increment(BoundaryId)
+    
     for i := len(tokens) - 1; i >= 4; i-- {
         quintgram := quintgrams[QuintgramSpec{
             DictionaryIdFirst: tokensMap[tokens[i]],
@@ -644,7 +695,8 @@ func learnQuintgramsReverse(
         }]
         quintgram.increment(tokensMap[tokens[i - 4]])
     }
-    quintgram := quintgrams[QuintgramSpec{
+    
+    quintgram = quintgrams[QuintgramSpec{
         DictionaryIdFirst: tokensMap[tokens[3]],
         DictionaryIdSecond: tokensMap[tokens[2]],
         DictionaryIdThird: tokensMap[tokens[1]],

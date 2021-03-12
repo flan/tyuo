@@ -55,19 +55,6 @@ func prepareDatabase(
         return nil, err
     }
     
-    if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS terminals (
-        dictionaryId INTEGER NOT NULL PRIMARY KEY,
-        lastObservedForward INTEGER, --UNIX timestamp
-        lastObservedReverse INTEGER, --UNIX timestamp
-
-        FOREIGN KEY(dictionaryId)
-        REFERENCES dictionary(id)
-        ON DELETE CASCADE
-    )`); err != nil {
-        connection.Close()
-        return nil, err
-    }
-    
     //for n-grams, the JSON structure will never be empty, since there
     //has to be at least one transition for a write to occur
     if _, err = connection.Exec(`CREATE TABLE IF NOT EXISTS digrams_forward (
@@ -538,182 +525,7 @@ func (db *database) bannedUnbanSubstrings(substrings []string) (error) {
 
 
 
-func (db *database) terminalsGetTerminals(
-    ids intset,
-    oldestAllowedTime int64,
-) (map[int]Terminal, error) {
-    if len(ids) == 0 {
-        return make(map[int]Terminal, 0), nil
-    }
-    
-    remainingIds := make(intset, len(ids))
-    for id := range ids {
-        remainingIds[id] = false
-    }
-    
-    query := fmt.Sprintf(`
-    SELECT
-        dictionaryId,
-        lastObservedForward,
-        lastObservedReverse
-    FROM
-        terminals
-    WHERE
-        id IN (%s)
-    LIMIT %d
-    `, prepareSqliteArrayParams(1, len(ids)), len(ids))
-    
-    if rows, err := db.connection.Query(
-        query,
-        intSetToInterfaceSlice(ids)...,
-    ); err == nil {
-        defer rows.Close()
-        results := make(map[int]Terminal, len(ids))
-        for rows.Next() {
-            var did int
-            var lof, lor sql.NullInt64
-            if err:= rows.Scan(&did, &lof, &lor); err == nil {
-                results[did] = Terminal{
-                    dictionaryId: did,
-                    
-                    Forward: lof.Valid && lof.Int64 > oldestAllowedTime,
-                    Reverse: lor.Valid && lor.Int64 > oldestAllowedTime,
-                }
-                delete(remainingIds, did)
-            } else {
-                return nil, err
-            }
-        }
-        for did := range remainingIds {
-            results[did] = Terminal{
-                dictionaryId: did,
-                
-                Forward: false,
-                Reverse: false,
-            }
-        }
-        return results, nil
-    } else {
-        return nil, err
-    }
-}
-func (db *database) terminalsSetStatus(terminals []Terminal) (error) {
-    if len(terminals) == 0 {
-        return nil
-    }
-    
-    currentTime := time.Now().Unix()
-    
-    tx, err := db.connection.Begin()
-    if err != nil {
-        return err
-    }
-    
-    //it should be quite rare that the same symbol is both the forward- and
-    //reverse-terminal while learning, so the logic was simplified a bit, opting
-    //to double-execute if that case happens
-    if stmtForward, err := tx.Prepare(`
-    INSERT INTO terminals(
-        dictionaryId,
-        lastObservedForward,
-        lastObservedReverse
-    ) VALUES (?1, ?2, NULL)
-    ON CONFLICT(dictionaryId) DO UPDATE SET
-        lastObservedForward = ?2
-    `); err == nil {
-        if stmtReverse, err := tx.Prepare(`
-        INSERT INTO terminals(
-            dictionaryId,
-            lastObservedForward,
-            lastObservedReverse
-        ) VALUES (?1, NULL, ?2)
-        ON CONFLICT(dictionaryId) DO UPDATE SET
-            lastObservedReverse = ?2
-        `); err == nil {
-            for _, terminal := range terminals {
-                if terminal.Forward {
-                    _, err = stmtForward.Exec(
-                        terminal.dictionaryId,
-                        currentTime,
-                    )
-                }
-                if err == nil && terminal.Reverse {
-                    _, err = stmtReverse.Exec(
-                        terminal.dictionaryId,
-                        currentTime,
-                    )
-                }
-                if err != nil {
-                    if e := stmtForward.Close(); e != nil {
-                        logger.Warningf("unable to close forward statement: %s", e)
-                    }
-                    if e := stmtReverse.Close(); e != nil {
-                        logger.Warningf("unable to close reverse statement: %s", e)
-                    }
-                    if e := tx.Rollback(); e != nil {
-                        logger.Warningf("unable to roll-back transaction: %s", e)
-                    }
-                    return err
-                }
-            }
-            stmtReverse.Close()
-        }
-        stmtForward.Close()
-    } else {
-        if e := tx.Rollback(); e != nil {
-            logger.Warningf("unable to roll-back transaction: %s", e)
-        }
-        return err
-    }
-    return tx.Commit()
-}
-//this provides starting-point candidates for doing a forward- or reverse-
-//random-walk, in the event that a keyword-oriented walk fails.
-func (db *database) terminalsGetStarters(
-    count int,
-    forward bool,
-    oldestAllowedTime int64,
-) ([]int, error) {
-    if count <= 0 {
-        return make([]int, 0), nil
-    }
-    
-    direction := "Reverse" //a reverse-terminal is position 0 in production
-    if !forward {
-        direction = "Forward"
-    }
-    
-    query := fmt.Sprintf(`
-    SELECT
-        dictionaryId
-    FROM
-        terminals
-    WHERE
-        lastObserved%s > ?1
-    ORDER BY RANDOM()
-    LIMIT %d
-    `, direction, count)
-    
-    if rows, err := db.connection.Query(
-        query,
-        oldestAllowedTime,
-    ); err == nil {
-        defer rows.Close()
-        
-        results := make([]int, 0, count)
-        for rows.Next() {
-            var did int
-            if err:= rows.Scan(&did); err == nil {
-                results = append(results, did)
-            } else {
-                return nil, err
-            }
-        }
-        return results, nil
-    } else {
-        return nil, err
-    }
-}
+
 
 
 
@@ -987,7 +799,7 @@ func (db *database) trigramsGetOnlyFirst(
         dictionaryIdFirst = ?1
     ORDER BY RANDOM()
     LIMIT %d
-    `, ngramsGetDirectionString(forward), count)); err == nil {
+    `, ngramsGetDirectionString(forward), count), dictionaryIdFirst); err == nil {
         defer rows.Close()
         
         output := make([]Trigram, 0, count)
@@ -1129,7 +941,7 @@ func (db *database) quadgramsGetOnlyFirst(
         dictionaryIdFirst = ?1
     ORDER BY RANDOM()
     LIMIT %d
-    `, ngramsGetDirectionString(forward), count)); err == nil {
+    `, ngramsGetDirectionString(forward), count), dictionaryIdFirst); err == nil {
         defer rows.Close()
         
         output := make([]Quadgram, 0, count)
@@ -1142,6 +954,47 @@ func (db *database) quadgramsGetOnlyFirst(
                     transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
                     
                     dictionaryIdFirst: dictionaryIdFirst,
+                    dictionaryIdSecond: dictionaryIdSecond,
+                    dictionaryIdThird: dictionaryIdThird,
+                })
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *database) quadgramsGetFromBoundary(
+    dictionaryIdSecond int,
+    count int,
+    forward bool,
+    oldestAllowedTime int64,
+) ([]Quadgram, error) {
+    if rows, err := db.connection.Query(fmt.Sprintf(`
+    SELECT
+        dictionaryIdThird,
+        transitionsJSONZLIB
+    FROM
+        quadgrams_%s
+    WHERE
+        dictionaryIdFirst = ?1
+        dictionaryIdSecond = ?2
+    ORDER BY RANDOM()
+    LIMIT %d
+    `, ngramsGetDirectionString(forward), count), BoundaryId, dictionaryIdSecond); err == nil {
+        defer rows.Close()
+        
+        output := make([]Quadgram, 0, count)
+        for rows.Next() {
+            var dictionaryIdThird int
+            var transitionsJSONZLIB []byte
+            if err:= rows.Scan(&dictionaryIdThird, &transitionsJSONZLIB); err == nil {
+                output = append(output, Quadgram{
+                    transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
+                    
+                    dictionaryIdFirst: BoundaryId,
                     dictionaryIdSecond: dictionaryIdSecond,
                     dictionaryIdThird: dictionaryIdThird,
                 })
@@ -1278,7 +1131,7 @@ func (db *database) quintgramsGetOnlyFirst(
         dictionaryIdFirst = ?1
     ORDER BY RANDOM()
     LIMIT %d
-    `, ngramsGetDirectionString(forward), count)); err == nil {
+    `, ngramsGetDirectionString(forward), count), dictionaryIdFirst); err == nil {
         defer rows.Close()
         
         output := make([]Quintgram, 0, count)
@@ -1292,6 +1145,50 @@ func (db *database) quintgramsGetOnlyFirst(
                     transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
                     
                     dictionaryIdFirst: dictionaryIdFirst,
+                    dictionaryIdSecond: dictionaryIdSecond,
+                    dictionaryIdThird: dictionaryIdThird,
+                    dictionaryIdFourth: dictionaryIdFourth,
+                })
+            } else {
+                return nil, err
+            }
+        }
+        return output, nil
+    } else {
+        return nil, err
+    }
+}
+func (db *database) quintgramsGetFromBoundary(
+    dictionaryIdSecond int,
+    count int,
+    forward bool,
+    oldestAllowedTime int64,
+) ([]Quintgram, error) {
+    if rows, err := db.connection.Query(fmt.Sprintf(`
+    SELECT
+        dictionaryIdThird,
+        dictionaryIdFourth,
+        transitionsJSONZLIB
+    FROM
+        quintgrams_%s
+    WHERE
+        dictionaryIdFirst = ?1 AND
+        dictionaryIdSecond = ?2
+    ORDER BY RANDOM()
+    LIMIT %d
+    `, ngramsGetDirectionString(forward), count), BoundaryId, dictionaryIdSecond); err == nil {
+        defer rows.Close()
+        
+        output := make([]Quintgram, 0, count)
+        for rows.Next() {
+            var dictionaryIdThird int
+            var dictionaryIdFourth int
+            var transitionsJSONZLIB []byte
+            if err:= rows.Scan(&dictionaryIdThird, &dictionaryIdFourth, &transitionsJSONZLIB); err == nil {
+                output = append(output, Quintgram{
+                    transitions: deserialiseTransitionsJSONZLIB(transitionsJSONZLIB, oldestAllowedTime),
+                    
+                    dictionaryIdFirst: BoundaryId,
                     dictionaryIdSecond: dictionaryIdSecond,
                     dictionaryIdThird: dictionaryIdThird,
                     dictionaryIdFourth: dictionaryIdFourth,

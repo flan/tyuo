@@ -52,18 +52,12 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
         }
     }
     if len(scoredProductions) == 0 { //either no keytokens or no sufficiently good productions
-        terminalIdsForward, err := ctx.GetTerminaStarterlIds(tokensInitial / 2, true)
-        if err != nil {
-            logger.Errorf("unable to enumerate forward terminals: %s", err)
-            return nil
-        }
-        terminalIdsReverse, err := ctx.GetTerminaStarterlIds(tokensInitial - len(terminalIdsForward), false)
-        if err != nil {
-            logger.Errorf("unable to enumerate reverse terminals: %s", err)
-            return nil
-        }
-        
-        productions, err := produceFromTerminals(ctx, terminalIdsForward, terminalIdsReverse)
+        countReverse := tokensInitial / 2
+        countForward := tokensInitial - countReverse
+        //keytokenIds is supplied here, potentially mutated above;
+        //if it's not empty, then try to pick them if they come up during the walk;
+        //if it is empty, then there's no change to the internal logic
+        productions, err := produceFromTerminals(ctx, keytokenIds, countForward, countReverse)
         if err != nil {
             logger.Errorf("unable to build productions: %s", err)
             return nil

@@ -74,6 +74,8 @@ type contextConfigProduction struct {
     TokensInitial int //try 2
     //how many paths to explore from the initial token, in both directions
     SearchBranchesInitial int //try 3
+    //how many paths to explore from the bounary, in both directions
+    SearchBranchesFromBoundaryInitial //try 1
     //how many paths each child should enumerate (but not necessarily explore)
     SearchBranchesChildren int //try 8
 
@@ -103,9 +105,10 @@ type contextConfigProduction struct {
     //this is in addition to tyuo's own scoring model, and it's up to the caller
     //to decide which response to display (probably highest scored, tie-broken by
     //highest surprise in most cases)
-    //turning surprise on incurs two linear n-gram lookups at the lowest-enabled level, so
-    //it may be worth disabling if milliseconds matter
-    CalculateSurprise bool
+    //turning either direction on incurs a linear n-gram lookup at the lowest-enabled
+    //level, so it may be worth disabling if milliseconds matter
+    CalculateSurpriseForward bool
+    CalculateSurpriseReverse bool
 }
 type contextConfig struct {
     Language string //"english", "french"
@@ -232,14 +235,104 @@ func (c *Context) getOldestAllowedTime() (int64) {
     return time.Now().Unix() - c.config.Learning.MaxAge
 }
 
-func (c *Context) GetTerminals(ids []int) (map[int]Terminal, error) {
-    return c.database.terminalsGetTerminals(
-        intSliceToSet(ids),
+func (c *Context) GetDigrams(
+    specs map[DigramSpec]bool,
+    forward bool,
+) (map[DigramSpec]Digram, error) {
+    return c.database.digramsGet(
+        specs,
+        forward,
         c.getOldestAllowedTime(),
     )
 }
-func (c *Context) GetTerminaStarterlIds(count int, forward bool) ([]int, error) {
-    return c.database.terminalsGetStarters(
+
+func (c *Context) GetTrigrams(
+    specs map[TrigramSpec]bool,
+    forward bool,
+) (map[TrigramSpec]Trigram, error) {
+    return c.database.trigramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+func (c *Context) GetTrigramsOrigin(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+) ([]Trigram, error) {
+    return c.database.trigramsGetOnlyFirst(
+        dictionaryIdFirst,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+func (c *Context) GetQuadgrams(
+    specs map[QuadgramSpec]bool,
+    forward bool,
+) (map[QuadgramSpec]Quadgram, error) {
+    return c.database.quadgramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+func (c *Context) GetQuadgramsOrigin(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+) ([]Quadgram, error) {
+    return c.database.quadgramsGetOnlyFirst(
+        dictionaryIdFirst,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+func (c *Context) GetQuadgramsFromBoundary(
+    dictionaryIdSecond int,
+    count int,
+    forward bool,
+) ([]Quintgram, error) {
+    return c.database.quadgramsGetFromBoundary(
+        dictionaryIdSecond,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+func (c *Context) GetQuintgrams(
+    specs map[QuintgramSpec]bool,
+    forward bool,
+) (map[QuintgramSpec]Quintgram, error) {
+    return c.database.quintgramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+func (c *Context) GetQuintgramsOrigin(
+    dictionaryIdFirst int,
+    count int,
+    forward bool,
+) ([]Quintgram, error) {
+    return c.database.quintgramsGetOnlyFirst(
+        dictionaryIdFirst,
+        count,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+func (c *Context) GetQuintgramsFromBoundary(
+    dictionaryIdSecond int,
+    count int,
+    forward bool,
+) ([]Quintgram, error) {
+    return c.database.quintgramsGetFromBoundary(
+        dictionaryIdSecond,
         count,
         forward,
         c.getOldestAllowedTime(),
@@ -247,7 +340,6 @@ func (c *Context) GetTerminaStarterlIds(count int, forward bool) ([]int, error) 
 }
 
 
-//TODO: define other paths for n-gram database access
 
 
 func (c *Context) IsAllowed(s string) (bool) {
@@ -297,14 +389,6 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     baseTokens := make([]string, len(tokens))
     for i, token := range tokens {
         baseTokens[i] = token.Base
-    }
-
-    if err = learnTerminals(
-        c.database,
-        tokensMap[baseTokens[0]],
-        tokensMap[baseTokens[len(baseTokens) - 1]],
-    ); err != nil {
-        return err
     }
 
     oldestAllowedTime := c.getOldestAllowedTime()

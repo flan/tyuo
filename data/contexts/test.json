@@ -20,6 +20,7 @@
         
         "TokensInitial": 2,
         "SearchBranchesInitial": 3,
+        "SearchBranchesFromBoundaryInitial": 1,
         "SearchBranchesChildren": 8,
 
         "MinLength": 5,
@@ -32,6 +33,7 @@
 
         "BaseRepresentationThreshold": 0.9,
         
-        "CalculateSurprise": true
+        "CalculateSurpriseForward": true,
+        "CalculateSurpriseReverse": true
     }
 }

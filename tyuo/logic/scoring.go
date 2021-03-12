@@ -46,3 +46,49 @@ func score(ctx *context.Context, productions []production) ([]scoredProduction, 
     //it may be worth disabling if milliseconds matter
     CalculateSurprise bool
     */
+
+/*
+func (c *Context) GetDigrams(
+    specs map[DigramSpec]bool,
+    forward bool,
+) (map[DigramSpec]Digram, error) {
+    return c.database.digramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+func (c *Context) GetTrigrams(
+    specs map[TrigramSpec]bool,
+    forward bool,
+) (map[TrigramSpec]Trigram, error) {
+    return c.database.trigramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+func (c *Context) GetQuadgrams(
+    specs map[QuadgramSpec]bool,
+    forward bool,
+) (map[QuadgramSpec]Quadgram, error) {
+    return c.database.quadgramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+
+func (c *Context) GetQuintgrams(
+    specs map[QuintgramSpec]bool,
+    forward bool,
+) (map[QuintgramSpec]Quintgram, error) {
+    return c.database.quintgramsGet(
+        specs,
+        forward,
+        c.getOldestAllowedTime(),
+    )
+}
+*/
