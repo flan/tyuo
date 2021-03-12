@@ -26,26 +26,15 @@ func score(ctx *context.Context, productions []production) ([]scoredProduction, 
 //productions are grouped by score and returned is descending order
 
 
-//for MegaHAL scoring, use the lowest-enabled n-gram level on the context, since that
-//should be guaranteed to be able to finish the walk;
-//in the event that a lower level was enabled post-deployment, there
+//for MegaHAL scoring, use the highest-enabled n-gram level on the context, since that
+//should provide decent coverage, reasonable critical value and the lowest amount of I/O;
+//in the event that a higher level was enabled post-deployment, there
 //will be gaps, but that's fine: just ignore any transitions for which there
 //are no records
 
 
 //if surprise is enabled, also include that value; otherwise, set surprise to 0.0
 
-
-/*
-    //enabling this calculates surprise for each production, similar to how
-    //MegaHAL works to try to choose the most original response from its generations;
-    //this is in addition to tyuo's own scoring model, and it's up to the caller
-    //to decide which response to display (probably highest scored, tie-broken by
-    //highest surprise in most cases)
-    //turning surprise on incurs two linear n-gram lookups at the lowest-enabled level, so
-    //it may be worth disabling if milliseconds matter
-    CalculateSurprise bool
-    */
 
 /*
 func (c *Context) GetDigrams(

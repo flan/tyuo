@@ -105,8 +105,8 @@ type contextConfigProduction struct {
     //this is in addition to tyuo's own scoring model, and it's up to the caller
     //to decide which response to display (probably highest scored, tie-broken by
     //highest surprise in most cases)
-    //turning either direction on incurs a linear n-gram lookup at the lowest-enabled
-    //level, so it may be worth disabling if milliseconds matter
+    //turning either direction on incurs a linear n-gram lookup at the highest-enabled
+    //level, so it may be worth disabling one or both if milliseconds matter
     CalculateSurpriseForward bool
     CalculateSurpriseReverse bool
 }
