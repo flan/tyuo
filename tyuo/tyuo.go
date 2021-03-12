@@ -20,12 +20,16 @@ import (
     "syscall"
     
     "github.com/juju/loggo"
+    "gopkg.in/natefinch/lumberjack.v2"
     
     "github.com/flan/tyuo/context"
     "github.com/flan/tyuo/service"
 )
 
 var dataDir = flag.String("data-dir", "", "the path to tyuo's data (default ~/.tyuo/)")
+var logLevel = flag.String("log-level", "warn", "the logging-level to be used")
+var logConsole = flag.Bool("log-console", false, "whether to log to console")
+var logFile = flag.String("log-file", "", "the path to which logs should be written")
 
 var logger = loggo.GetLogger("main")
 
@@ -39,13 +43,35 @@ func setupSignals(shutdown chan<- string) {
     }()
 }
 
+func setupLogging() {
+    var logLevelEnumerated, logLevelValid = loggo.ParseLevel(*logLevel)
+    if !logLevelValid {
+        logger.Errorf("Unsupported logging-level", *logLevel)
+        logLevelEnumerated = loggo.WARNING
+    }
+    loggo.GetLogger("").SetLogLevel(logLevelEnumerated)
+    
+    loggo.RemoveWriter("default")
+    
+    if *logConsole {
+        var writer = loggo.NewSimpleWriter(os.Stderr, loggo.DefaultFormatter)
+        loggo.RegisterWriter("console", writer)
+    }
+    
+    if *logFile != "" {
+        var writer = loggo.NewSimpleWriter(&lumberjack.Logger{
+            Filename: *logFile,
+            MaxSize: 1, //megabytes
+            MaxBackups: 3,
+            MaxAge: 7, //days to hold backups
+        }, nil)
+        loggo.RegisterWriter("file", writer)
+    }
+}
+
 func main() {
     flag.Parse()
-    //use a flag to set logging level
-    
-    loggo.GetLogger("").SetLogLevel(loggo.DEBUG)
-    loggo.RemoveWriter("default")
-    loggo.RegisterWriter("console", loggo.NewSimpleWriter(os.Stderr, loggo.DefaultFormatter))
+    setupLogging()
     
     var dataPath string
     if *dataDir == "" {

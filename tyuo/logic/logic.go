@@ -44,8 +44,8 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
     }
     if len(scoredProductions) == 0 { //either no keytokens or no sufficiently good productions
         //select some terminals
-        var terminalIdsForward int[] = nil
-        var terminalIdsReverse int[] = nil
+        var terminalIdsForward []int = nil
+        var terminalIdsReverse []int = nil
         
         productions, err := produceFromTerminals(ctx, terminalIdsForward, terminalIdsReverse)
         if err != nil {
