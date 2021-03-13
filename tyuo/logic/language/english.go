@@ -3,6 +3,8 @@ import (
     "github.com/flan/tyuo/context"
     
     "golang.org/x/text/transform"
+    
+    "strings"
 )
 
 var englishCharacters = runeset{
@@ -60,6 +62,7 @@ var englishCharacters = runeset{
     'Z': voidInstance,
     'é': voidInstance,
     'É': voidInstance,
+    'ï': voidInstance,
     apostrophe: voidInstance,
     hyphen: voidInstance,
 }
@@ -73,6 +76,402 @@ var englishVowelsNormalised = runeset{
     'o': voidInstance,
     'u': voidInstance,
 }
+
+
+//people are very lazy, but with contractions, this can lead to divergent paths for "didn't" and "didnt",
+//which is very undesireable; leave the common usage intact when displaying, but map some words to their
+//correct form for identification consistency
+var englishCorrections = map[string]string{
+    "aint": "ain't",
+    "arent": "aren't",
+    "cant": "can't", //"cant" is a very obscure word
+    "couldnt": "couldn't",
+    "couldve": "could've",
+    "didnt": "didn't",
+    "doesnt": "doesn't",
+    "dont": "don't",
+    "hadnt": "hadn't",
+    "havent": "haven't",
+    "hed": "he'd",
+    "hes": "he's",
+    //"id": "i'd", //"id" comes up sometimes
+    "im": "i'm",
+    "ima": "i'mma",
+    "i'ma": "i'mma",
+    "imma": "i'mma",
+    "isnt": "isn't",
+    "ive": "i've",
+    "mightve": "might've",
+    "mustnt": "mustn't",
+    "mustve": "must've",
+    //"shed": "she'd", //the word "shed" isn't exactly obscure
+    "shes": "she's",
+    "souldnt": "shouldn't",
+    "souldve": "should've",
+    "their's": "theirs",
+    "theres": "there's",
+    "theyre": "they're",
+    "theyd": "they'd",
+    "theyll": "they'll",
+    "theyve": "they've",
+    "wasnt": "wasn't",
+    "wernt": "weren't",
+    "werent": "weren't",
+    "weve": "we've",
+    "wheres": "where's",
+    "whos": "who's",
+    "wont": "won't", //"wont" is a very obscure word
+    "wouldnt": "wouldn't",
+    "yall": "y'all",
+    "youll": "you'll",
+}
+
+type englishErrorWordFragment struct {
+    correct string
+    incorrect []string
+}
+//and handle some commonly misspelled word-fragments
+var englishErrorWordFragments = []englishErrorWordFragment{
+    englishErrorWordFragment{
+        correct: "acceptabl",
+        incorrect: []string{"acceptibl"},
+    },
+    englishErrorWordFragment{
+        correct: "accidental",
+        incorrect: []string{"accidentall", "accidentl"},
+    },
+    englishErrorWordFragment{
+        correct: "accommodat",
+        incorrect: []string{"accomodat", "acommodat"},
+    },
+    englishErrorWordFragment{
+        correct: "achiev",
+        incorrect: []string{"acheiv"},
+    },
+    englishErrorWordFragment{
+        correct: "acknowledg",
+        incorrect: []string{"acknowleg", "aknowledg"},
+    },
+    englishErrorWordFragment{
+        correct: "aggress",
+        incorrect: []string{"agress"},
+    },
+    englishErrorWordFragment{
+        correct: "almost",
+        incorrect: []string{"allmost"},
+    },
+    englishErrorWordFragment{
+        correct: "annual",
+        incorrect: []string{"anual"},
+    },
+    englishErrorWordFragment{
+        correct: "apparent",
+        incorrect: []string{"apparant", "aparent", "apparrent", "aparrent"},
+    },
+    englishErrorWordFragment{
+        correct: "arctic",
+        incorrect: []string{"artic"},
+    },
+    englishErrorWordFragment{
+        correct: "argument",
+        incorrect: []string{"arguement"},
+    },
+    englishErrorWordFragment{
+        correct: "atheist",
+        incorrect: []string{"athiest", "athist"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "barbecue",
+        incorrect: []string{"bbq", "barbeque", "barbequeue"},
+    },
+    englishErrorWordFragment{
+        correct: "because",
+        incorrect: []string{"beatiful"},
+    },
+    englishErrorWordFragment{
+        correct: "beginning",
+        incorrect: []string{"begining"},
+    },
+    englishErrorWordFragment{
+        correct: "belie",
+        incorrect: []string{"belei"},
+    },
+    englishErrorWordFragment{
+        correct: "business",
+        incorrect: []string{"buisness"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "calendar",
+        incorrect: []string{"calender"},
+    },
+    englishErrorWordFragment{
+        correct: "categor",
+        incorrect: []string{"catagor"},
+    },
+    englishErrorWordFragment{
+        correct: "cemetery",
+        incorrect: []string{"cemetary", "cematery"},
+    },
+    englishErrorWordFragment{
+        correct: "congratulat",
+        incorrect: []string{"congradulat"},
+    },
+    englishErrorWordFragment{
+        correct: "conscious",
+        incorrect: []string{"concious", "consious"},
+    },
+    englishErrorWordFragment{
+        correct: "controvers",
+        incorrect: []string{"contravers"},
+    },
+    englishErrorWordFragment{
+        correct: "decei",
+        incorrect: []string{"decie"},
+    },
+    englishErrorWordFragment{
+        correct: "definit",
+        incorrect: []string{"definat"},
+    },
+    englishErrorWordFragment{
+        correct: "desper",
+        incorrect: []string{"despar"},
+    },
+    englishErrorWordFragment{
+        correct: "differ",
+        incorrect: []string{"diffr"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "embarrass",
+        incorrect: []string{"embarass"},
+    },
+    englishErrorWordFragment{
+        correct: "existen",
+        incorrect: []string{"existan"},
+    },
+    englishErrorWordFragment{
+        correct: "experien",
+        incorrect: []string{"experian"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "foreign",
+        incorrect: []string{"foriegn"},
+    },
+    englishErrorWordFragment{
+        correct: "fulfil",
+        incorrect: []string{"fullfil", "fulfill"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "gauge",
+        incorrect: []string{"guage"},
+    },
+    englishErrorWordFragment{
+        correct: "guida",
+        incorrect: []string{"guide"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "harass",
+        incorrect: []string{"harrass"},
+    },
+    englishErrorWordFragment{
+        correct: "heroes",
+        incorrect: []string{"heros"},
+    },
+    englishErrorWordFragment{
+        correct: "hygien",
+        incorrect: []string{"hygen", "hygein"},
+    },
+    englishErrorWordFragment{
+        correct: "hypocri",
+        incorrect: []string{"hipocrit", "hippocrit"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "ignoran",
+        incorrect: []string{"ignoren"},
+    },
+    englishErrorWordFragment{
+        correct: "independent",
+        incorrect: []string{"independant"},
+    },
+    englishErrorWordFragment{
+        correct: "indispensabl",
+        incorrect: []string{"indispensibl"},
+    },
+    englishErrorWordFragment{
+        correct: "inoculat",
+        incorrect: []string{"innoculat"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "jewelry",
+        incorrect: []string{"jewelery"},
+    },
+    englishErrorWordFragment{
+        correct: "judgment",
+        incorrect: []string{"judgement"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "kernel",
+        incorrect: []string{"kernal"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "necessar",
+        incorrect: []string{"neccessar"},
+    },
+    englishErrorWordFragment{
+        correct: "niece",
+        incorrect: []string{"neice"},
+    },
+    englishErrorWordFragment{
+        correct: "notice",
+        incorrect: []string{"notica"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "occasion",
+        incorrect: []string{"occassion"},
+    },
+    englishErrorWordFragment{
+        correct: "occurre",
+        incorrect: []string{"occurra", "occure"},
+    },
+    englishErrorWordFragment{
+        correct: "omission",
+        incorrect: []string{"ommision", "omision"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "pastime",
+        incorrect: []string{"passtime", "pasttime"},
+    },
+    englishErrorWordFragment{
+        correct: "personnel",
+        incorrect: []string{"personell", "personel"},
+    },
+    englishErrorWordFragment{
+        correct: "possess",
+        incorrect: []string{"posess", "posses"},
+    },
+    englishErrorWordFragment{
+        correct: "potatoes",
+        incorrect: []string{"potatos"},
+    },
+    englishErrorWordFragment{
+        correct: "privilege",
+        incorrect: []string{"privelege", "priviledge"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "publicly",
+        incorrect: []string{"publically"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "quarantine",
+        incorrect: []string{"quarentine"},
+    },
+    englishErrorWordFragment{
+        correct: "queue",
+        incorrect: []string{"que"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "receive",
+        incorrect: []string{"recieve"},
+    },
+    englishErrorWordFragment{
+        correct: "receipt",
+        incorrect: []string{"reciept"},
+    },
+    englishErrorWordFragment{
+        correct: "recommend",
+        incorrect: []string{"recomend", "reccommend"},
+    },
+    englishErrorWordFragment{
+        correct: "relevan",
+        incorrect: []string{"releven"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "restaurant",
+        incorrect: []string{"restarant", "restaraunt"},
+    },
+    englishErrorWordFragment{
+        correct: "rhythm",
+        incorrect: []string{"rythm", "rythem"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "separate",
+        incorrect: []string{"seperate"},
+    },
+    englishErrorWordFragment{
+        correct: "speech",
+        incorrect: []string{"speach"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "surpris",
+        incorrect: []string{"supris"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "tomatoes",
+        incorrect: []string{"tomatos"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "tomorrow",
+        incorrect: []string{"tommorow", "tommorrow"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "vacuum",
+        incorrect: []string{"vaccuum", "vaccum", "vacume"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "weird",
+        incorrect: []string{"wierd"},
+    },
+    
+    
+    englishErrorWordFragment{
+        correct: "zeroes",
+        incorrect: []string{"zeros"},
+    },
+}
+
 
 var englishLanguageDefinition = languageDefinition{
     delimiter: ' ',
@@ -133,6 +532,25 @@ var englishLanguageDefinition = languageDefinition{
                         return nil, false
                     }
                     vowelCount = 0
+                }
+            }
+            
+            //see if it's a word with a direct correction
+            if correctedForm, defined := englishCorrections[base]; defined {
+                base = correctedForm
+            } else { //account for common spelling errors to reduce n-gram spread
+                for _, eewf := range englishErrorWordFragments {
+                    replacementMade := false
+                    for _, incorrect := range eewf.incorrect {
+                        if strings.Contains(base, incorrect) {
+                            base = strings.Replace(base, incorrect, eewf.correct, 1)
+                            replacementMade = true
+                            break
+                        }
+                    }
+                    if replacementMade {
+                        break
+                    }
                 }
             }
             
