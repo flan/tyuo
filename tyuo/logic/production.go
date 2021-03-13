@@ -6,38 +6,54 @@ import (
 )
 
 
-func produceDecideStop(ctx *context.Context, pathLen int, minLength int) (bool) {
-    if pathLen >= minLength {
-        if pathLen >= ctx.GetProductionTargetMinLength() {
-            if rng.Float32() < ctx.GetProductionTargetStopProbability() {
-                return true
+func produceFromNgramEvaluateTransitions(
+    ctx *context.Context, path production, minLength int, ngram context.Ngram, 
+    keytokenIdsSet *map[int]bool, productions *[]production, transitionIds *[]int, transitionsSelected *bool, stopConsidered *bool,
+) (bool) {
+    if ngram.IsTerminal() { //this is a potential ending point
+        if !*stopConsidered {
+            *productions = append(*productions, path)
+            
+            if len(path) >= minLength {
+                if len(path) >= ctx.GetProductionTargetMinLength() {
+                    if rng.Float32() < ctx.GetProductionTargetStopProbability() {
+                        return true
+                    }
+                } else {
+                    if rng.Float32() < ctx.GetProductionStopProbability() {
+                        return true
+                    }
+                }
             }
-        } else {
-            if rng.Float32() < ctx.GetProductionStopProbability() {
-                return true
-            }
+            *stopConsidered = true
         }
     }
+    if len(*keytokenIdsSet) > 0 {
+        if preferredTransitions := ngram.ChooseTransitionIds(*keytokenIdsSet, 1); len(preferredTransitions) > 0 {
+            newKeyTokenIdsSet := make(map[int]bool, len(*keytokenIdsSet) - 1)
+            for k, v := range *keytokenIdsSet {
+                if k != preferredTransitions[0] {
+                    newKeyTokenIdsSet[k] = v
+                }
+            }
+            *keytokenIdsSet = newKeyTokenIdsSet
+            
+            *transitionIds = preferredTransitions
+            *transitionsSelected = true
+        }
+    }
+    *transitionIds = append(*transitionIds, ngram.SelectTransitionIds(ctx.GetProductionSearchBranchesChildren() - len(*transitionIds), ctx.GetIdsBannedStatus, true)...)
+    *transitionsSelected = len(*transitionIds) >= ctx.GetProductionSearchBranchesChildren()
+    
     return false
 }
 
-func producePrepareReducedKeytokenIdsSet(keytokenIdsSet map[int]bool, chosenId int) (map[int]bool) {
-    newKeyTokenIdsSet := make(map[int]bool, len(keytokenIdsSet) - 1)
-    for k, v := range keytokenIdsSet {
-        if k != chosenId {
-            newKeyTokenIdsSet[k] = v
-        }
-    }
-    return newKeyTokenIdsSet
-}
-
 func produceFromNgram(ctx *context.Context, path production, minLength int, keytokenIdsSet map[int]bool, forward bool) ([]production, error) {
-    searchBranches := ctx.GetProductionSearchBranchesChildren()
     pathLen := len(path)
     stopConsidered := false
     
     transitionsSelected := false
-    transitionIds := make([]int, 0, searchBranches)
+    transitionIds := make([]int, 0, ctx.GetProductionSearchBranchesChildren())
     productions := make([]production, 0, 1)
     
     if !transitionsSelected && ctx.AreQuintgramsEnabled() && pathLen >= 4 {
@@ -53,24 +69,11 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
         }
         if len(ngrams) > 0 {
             ngram := ngrams[ngramSpec]
-            if ngram.IsTerminal() { //this is a potential ending point
-                if !stopConsidered {
-                    productions = append(productions, path)
-                    if produceDecideStop(ctx, pathLen, minLength) {
-                        return productions, nil
-                    }
-                    stopConsidered = true
-                }
+            if produceFromNgramEvaluateTransitions(ctx, path, minLength, &ngram,
+                &keytokenIdsSet, &productions, &transitionIds, &transitionsSelected, &stopConsidered,
+            ) {
+                return productions, nil
             }
-            if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions
-                    transitionsSelected = true
-                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
-                }
-            }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
-            transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
     
@@ -86,24 +89,11 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
         }
         if len(ngrams) > 0 {
             ngram := ngrams[ngramSpec]
-            if ngram.IsTerminal() { //this is a potential ending point
-                if !stopConsidered {
-                    productions = append(productions, path)
-                    if produceDecideStop(ctx, pathLen, minLength) {
-                        return productions, nil
-                    }
-                    stopConsidered = true
-                }
+            if produceFromNgramEvaluateTransitions(ctx, path, minLength, &ngram,
+                &keytokenIdsSet, &productions, &transitionIds, &transitionsSelected, &stopConsidered,
+            ) {
+                return productions, nil
             }
-            if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions
-                    transitionsSelected = true
-                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
-                }
-            }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
-            transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
     
@@ -118,24 +108,11 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
         }
         if len(ngrams) > 0 {
             ngram := ngrams[ngramSpec]
-            if ngram.IsTerminal() { //this is a potential ending point
-                if !stopConsidered {
-                    productions = append(productions, path)
-                    if produceDecideStop(ctx, pathLen, minLength) {
-                        return productions, nil
-                    }
-                    stopConsidered = true
-                }
+            if produceFromNgramEvaluateTransitions(ctx, path, minLength, &ngram,
+                &keytokenIdsSet, &productions, &transitionIds, &transitionsSelected, &stopConsidered,
+            ) {
+                return productions, nil
             }
-            if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions
-                    transitionsSelected = true
-                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
-                }
-            }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
-            transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
     
@@ -149,24 +126,11 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
         }
         if len(ngrams) > 0 {
             ngram := ngrams[ngramSpec]
-            if ngram.IsTerminal() { //this is a potential ending point
-                if !stopConsidered {
-                    productions = append(productions, path)
-                    if produceDecideStop(ctx, pathLen, minLength) {
-                        return productions, nil
-                    }
-                    stopConsidered = true
-                }
+            if produceFromNgramEvaluateTransitions(ctx, path, minLength, &ngram,
+                &keytokenIdsSet, &productions, &transitionIds, &transitionsSelected, &stopConsidered,
+            ) {
+                return productions, nil
             }
-            if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions
-                    transitionsSelected = true
-                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
-                }
-            }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
-            transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
     
@@ -176,7 +140,7 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
             copy(newPath, path)
             newPath[pathLen] = transitionId
             if childProductions, err := produceFromNgram(ctx, newPath, minLength, keytokenIdsSet, forward); err == nil {
-                if len(productions) > 0 {
+                if len(childProductions) > 0 {
                     productions = append(productions, childProductions...)
                 }
                 break
