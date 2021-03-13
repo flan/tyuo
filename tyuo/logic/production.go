@@ -69,7 +69,7 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
             }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
             transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
@@ -102,7 +102,7 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
             }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
             transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
@@ -134,7 +134,7 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
             }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
             transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
@@ -165,7 +165,7 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
             }
-            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus, true)...)
             transitionsSelected = len(transitionIds) >= searchBranches
         }
     }
@@ -232,7 +232,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdFirst(),
@@ -258,7 +258,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdSecond(),
@@ -286,7 +286,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdFirst(),
@@ -310,7 +310,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdSecond(),
@@ -336,7 +336,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdFirst(),
@@ -356,7 +356,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                 if len(ngrams) > 0 {
                     ngram := ngrams[trigramSpec]
                     
-                    transitionIds := ngram.SelectTransitionIds(searchBranchesBoundaryRemaining, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(searchBranchesBoundaryRemaining, ctx.GetIdsBannedStatus, true)
                     for _, transitionId := range transitionIds {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdSecond(),
@@ -378,7 +378,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
                 if len(ngrams) > 0 {
                     ngram := ngrams[digramSpec]
                     
-                    transitionIds := ngram.SelectTransitionIds(searchBranchesRemaining, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(searchBranchesRemaining, ctx.GetIdsBannedStatus, true)
                     for _, transitionId := range transitionIds {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdFirst(),
@@ -560,7 +560,7 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdSecond(),
@@ -588,7 +588,7 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdSecond(),
@@ -614,7 +614,7 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
                         continue
                     }
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     if len(transitionIds) > 0 {
                         productions = append(productions, production{
                             ngram.GetDictionaryIdSecond(),
@@ -636,7 +636,7 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
                 if len(ngrams) > 0 {
                     ngram := ngrams[digramSpec]
                     
-                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus, true)
                     for _, transitionId := range transitionIds {
                         productions = append(productions, production{
                             transitionId,

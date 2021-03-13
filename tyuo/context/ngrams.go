@@ -52,9 +52,13 @@ func transitionsChooseWeightedRandom(
     transitions map[int]transitionSpec,
     count int,
     banCheck func([]int)(map[int]bool),
+    excludeBoundaries bool,
 ) ([]int) {
     remainingTransitions := make(map[int]transitionSpec, len(transitions))
     for did, ts := range transitions {
+        if excludeBoundaries && did == BoundaryId {
+            continue
+        }
         if !banCheck([]int{did})[did] {
             remainingTransitions[did] = ts
         }
@@ -148,8 +152,9 @@ func (g *Digram) IsTerminal() (bool) {
 func (g *Digram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
+    excludeBoundaries bool,
 ) ([]int) {
-    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck, excludeBoundaries)
 }
 func (g *Digram) ChooseTransitionIds(
     desired map[int]bool,
@@ -191,8 +196,9 @@ func (g *Trigram) IsTerminal() (bool) {
 func (g *Trigram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
+    excludeBoundaries bool,
 ) ([]int) {
-    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck, excludeBoundaries)
 }
 func (g *Trigram) ChooseTransitionIds(
     desired map[int]bool,
@@ -239,8 +245,9 @@ func (g *Quadgram) IsTerminal() (bool) {
 func (g *Quadgram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
+    excludeBoundaries bool,
 ) ([]int) {
-    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck, excludeBoundaries)
 }
 func (g *Quadgram) ChooseTransitionIds(
     desired map[int]bool,
@@ -292,8 +299,9 @@ func (g *Quintgram) IsTerminal() (bool) {
 func (g *Quintgram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
+    excludeBoundaries bool,
 ) ([]int) {
-    return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+    return transitionsChooseWeightedRandom(g.transitions, count, banCheck, excludeBoundaries)
 }
 func (g *Quintgram) ChooseTransitionIds(
     desired map[int]bool,
