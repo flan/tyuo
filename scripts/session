@@ -11,5 +11,9 @@ while True:
         },
         timeout=10.0,
     )
-    print(json.dumps(r.json(), indent=4))
-    
+    result = r.json()
+    if result:
+        print(json.dumps(result[0], indent=4))
+    else:
+        print("I don't know enough to respond to you; please converse in my presence so I can learn more.")
+        

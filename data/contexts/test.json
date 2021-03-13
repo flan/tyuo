@@ -25,11 +25,11 @@
 
         "MinLength": 5,
         "MaxLength": 30,
-        "StopProbability": 0.125,
+        "StopProbability": 0.25,
 
         "TargetMinLength": 8,
         "TargetMaxLength": 16,
-        "TargetStopProbability": 0.25,
+        "TargetStopProbability": 0.375,
 
         "BaseRepresentationThreshold": 0.9,
         

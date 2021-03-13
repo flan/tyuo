@@ -515,7 +515,6 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
     if searchBranchesBoundaryRemaining > 0 {
         if ctx.AreQuintgramsEnabled() {
             if ngrams, err := ctx.GetQuintgramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
-logger.Criticalf("%v", ngrams)
                 for _, ngram := range ngrams {
                     if !ctx.AreIdsAllowed([]int{
                         ngram.GetDictionaryIdSecond(),
@@ -545,7 +544,6 @@ logger.Criticalf("%v", ngrams)
     if searchBranchesBoundaryRemaining > 0 {
         if ctx.AreQuadgramsEnabled() {
             if ngrams, err := ctx.GetQuadgramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
-logger.Criticalf("%v", ngrams)
                 for _, ngram := range ngrams {
                     if !ctx.AreIdsAllowed([]int{
                         ngram.GetDictionaryIdSecond(),
@@ -573,7 +571,6 @@ logger.Criticalf("%v", ngrams)
     if searchBranchesBoundaryRemaining > 0 {
         if ctx.AreTrigramsEnabled() {
             if ngrams, err := ctx.GetTrigramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
-logger.Criticalf("%v", ngrams)
                 for _, ngram := range ngrams {
                     if !ctx.AreIdsAllowed([]int{
                         ngram.GetDictionaryIdSecond(),
@@ -600,7 +597,6 @@ logger.Criticalf("%v", ngrams)
         if ctx.AreDigramsEnabled() {
             digramSpec := context.DigramSpec{DictionaryIdFirst: context.BoundaryId}
             if ngrams, err := ctx.GetDigrams(map[context.DigramSpec]bool{digramSpec: false}, forward); err == nil {
-logger.Criticalf("%v", ngrams)
                 if len(ngrams) > 0 {
                     ngram := ngrams[digramSpec]
                     

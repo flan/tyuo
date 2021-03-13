@@ -26,6 +26,10 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
         logger.Errorf("unable to enumerate keytokens: %s", err)
         return nil
     }
+    keytokenIdsForScoring := make(map[int]bool, len(keytokenIds))
+    for _, id := range keytokenIds {
+        keytokenIdsForScoring[id] = false
+    }
     
     //number of tokens to start with for each search
     tokensInitial := ctx.GetProductionTokensInitial()
@@ -45,8 +49,7 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
             logger.Errorf("unable to build productions: %s", err)
             return nil
         }
-logger.Criticalf("productions-keyword: %v", productions)
-        scoredProductions, err = score(ctx, productions)
+        scoredProductions, err = score(ctx, productions, keytokenIdsForScoring)
         if err != nil {
             logger.Errorf("unable to score productions: %s", err)
             return nil
@@ -63,8 +66,7 @@ logger.Criticalf("productions-keyword: %v", productions)
             logger.Errorf("unable to build productions: %s", err)
             return nil
         }
-logger.Criticalf("productions-walk: %v", productions)
-        scoredProductions, err = score(ctx, productions)
+        scoredProductions, err = score(ctx, productions, keytokenIdsForScoring)
         if err != nil {
             logger.Errorf("unable to score productions: %s", err)
             return nil
