@@ -82,11 +82,19 @@ func transitionsChooseWeightedRandom(
 func transitionsChooseFromSet(
     transitions map[int]transitionSpec,
     desired map[int]bool,
+    count int,
 ) ([]int) {
     selectedIds := make([]int, 0)
     for k, _ := range desired {
         if _, present := transitions[k]; present {
             selectedIds = append(selectedIds, k)
+        }
+    }
+    if len(selectedIds) > 0 {
+        //something was found; randomise what gets picked
+        rng.Shuffle(len(selectedIds), func(i, j int) {selectedIds[i], selectedIds[j] = selectedIds[j], selectedIds[i]})
+        if len(selectedIds) > count {
+            selectedIds = selectedIds[:count]
         }
     }
     return selectedIds
@@ -145,8 +153,9 @@ func (g *Digram) SelectTransitionIds(
 }
 func (g *Digram) ChooseTransitionIds(
     desired map[int]bool,
+    count int,
 ) ([]int) {
-    return transitionsChooseFromSet(g.transitions, desired)
+    return transitionsChooseFromSet(g.transitions, desired, count)
 }
 func (g *Digram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
@@ -187,8 +196,9 @@ func (g *Trigram) SelectTransitionIds(
 }
 func (g *Trigram) ChooseTransitionIds(
     desired map[int]bool,
+    count int,
 ) ([]int) {
-    return transitionsChooseFromSet(g.transitions, desired)
+    return transitionsChooseFromSet(g.transitions, desired, count)
 }
 func (g *Trigram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
@@ -234,8 +244,9 @@ func (g *Quadgram) SelectTransitionIds(
 }
 func (g *Quadgram) ChooseTransitionIds(
     desired map[int]bool,
+    count int,
 ) ([]int) {
-    return transitionsChooseFromSet(g.transitions, desired)
+    return transitionsChooseFromSet(g.transitions, desired, count)
 }
 func (g *Quadgram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
@@ -286,8 +297,9 @@ func (g *Quintgram) SelectTransitionIds(
 }
 func (g *Quintgram) ChooseTransitionIds(
     desired map[int]bool,
+    count int,
 ) ([]int) {
-    return transitionsChooseFromSet(g.transitions, desired)
+    return transitionsChooseFromSet(g.transitions, desired, count)
 }
 func (g *Quintgram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)

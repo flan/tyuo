@@ -63,8 +63,8 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                 }
             }
             if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions[:1]
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions
                     transitionsSelected = true
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
@@ -96,8 +96,8 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                 }
             }
             if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions[:1]
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions
                     transitionsSelected = true
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
@@ -128,8 +128,8 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                 }
             }
             if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions[:1]
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions
                     transitionsSelected = true
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
@@ -159,8 +159,8 @@ func produceFromNgram(ctx *context.Context, path production, minLength int, keyt
                 }
             }
             if len(keytokenIdsSet) > 0 {
-                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
-                    transitionIds = preferredTransitions[:1]
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet, 1); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions
                     transitionsSelected = true
                     keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
                 }
