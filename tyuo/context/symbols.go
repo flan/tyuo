@@ -42,72 +42,80 @@ var Symbols = []symbolSpec{
         id: reservedIdsSymbolsBase + 5,
     },
     symbolSpec{
-        repr: ">:(",
+        repr: "D:<",
         id: reservedIdsSymbolsBase + 6,
     },
     symbolSpec{
-        repr: ":O",
+        repr: ">:(",
         id: reservedIdsSymbolsBase + 7,
     },
     symbolSpec{
-        repr: ";_;",
+        repr: ":O",
         id: reservedIdsSymbolsBase + 8,
     },
     symbolSpec{
-        repr: "T_T",
+        repr: ";_;",
         id: reservedIdsSymbolsBase + 9,
     },
     symbolSpec{
-        repr: "n.n",
+        repr: "T_T",
         id: reservedIdsSymbolsBase + 10,
     },
     symbolSpec{
-        repr: "\\o/",
+        repr: "n.n",
         id: reservedIdsSymbolsBase + 11,
     },
     symbolSpec{
-        repr: "\\o\\",
+        repr: "\\o/",
         id: reservedIdsSymbolsBase + 12,
     },
     symbolSpec{
-        repr: "vOv",
+        repr: "\\o\\",
         id: reservedIdsSymbolsBase + 13,
     },
     symbolSpec{
-        repr: ":3",
+        repr: "vOv",
         id: reservedIdsSymbolsBase + 14,
     },
     symbolSpec{
-        repr: ">:3",
+        repr: ":3",
         id: reservedIdsSymbolsBase + 15,
     },
     symbolSpec{
-        repr: "<3",
+        repr: ">:3",
         id: reservedIdsSymbolsBase + 16,
     },
     symbolSpec{
-        repr: "</3",
+        repr: "<3",
         id: reservedIdsSymbolsBase + 17,
     },
     symbolSpec{
-        repr: "C:",
+        repr: "</3",
         id: reservedIdsSymbolsBase + 18,
     },
     symbolSpec{
-        repr: "C:<",
+        repr: "C:",
         id: reservedIdsSymbolsBase + 19,
     },
     symbolSpec{
-        repr: ":C",
+        repr: "C:<",
         id: reservedIdsSymbolsBase + 20,
     },
     symbolSpec{
-        repr: ">:C",
+        repr: ":C",
         id: reservedIdsSymbolsBase + 21,
     },
     symbolSpec{
-        repr: ":3c",
+        repr: ">:C",
         id: reservedIdsSymbolsBase + 22,
+    },
+    symbolSpec{
+        repr: ":3c",
+        id: reservedIdsSymbolsBase + 23,
+    },
+    symbolSpec{
+        repr: ">:3c",
+        id: reservedIdsSymbolsBase + 24,
     },
     
     
