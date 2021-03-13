@@ -375,24 +375,26 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     rescaleThreshold := c.config.Learning.RescaleThreshold
     rescaleDecimator := c.config.Learning.RescaleDecimator
 
-    //strip punctuation so it doesn't get learned redundantly
-    depunctuatedTokens := make([]ParsedToken, 0, len(tokens))
+    //strip punctuation and symbols so they don't get learned redundantly
+    deReservedTokens := make([]ParsedToken, 0, len(tokens))
     for _, pt := range tokens {
         if _, defined := PunctuationIdsByToken[pt.Base]; !defined {
-            depunctuatedTokens = append(depunctuatedTokens, pt)
+            if _, defined = SymbolsIdsByToken[pt.Base]; !defined {
+                deReservedTokens = append(deReservedTokens, pt)
+            }
         }
     }
 
     //first, update the dictionary to make sure all tokens have an ID
     dictionaryTokens, err := c.dictionary.learnTokens(
-        depunctuatedTokens,
+        deReservedTokens,
         rescaleThreshold,
         rescaleDecimator,
     )
     if err != nil {
         return err
     }
-    depunctuatedTokens = nil //not needed anymore and this function's runtime is far from over
+    deReservedTokens = nil //not needed anymore and this function's runtime is far from over
 
     tokensMap := make(map[string]int, len(dictionaryTokens) + len(PunctuationIdsByToken))
     for _, dt := range dictionaryTokens {

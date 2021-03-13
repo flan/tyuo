@@ -1,4 +1,7 @@
 package context
+import (
+    "fmt"
+)
 
 type punctuationSpec struct {
     id int
@@ -10,56 +13,56 @@ func (ps *punctuationSpec) GetRepr() (rune) {
 func (ps *punctuationSpec) GetId() (int) {
     return ps.id
 }
-//CAUTION: do not alter any previously defined symbols or their IDs;
+//CAUTION: do not alter any previously defined punctuation or their IDs;
 //only ever add to this list
-var Punctuation = [12]punctuationSpec{
+var Punctuation = []punctuationSpec{
     punctuationSpec{
         repr: '.',
-        id: -2147483647 + 0,
+        id: reservedIdsPunctuationBase + 0,
     },
     punctuationSpec{
         repr: ',',
-        id: -2147483647 + 1,
+        id: reservedIdsPunctuationBase + 1,
     },
     punctuationSpec{
         repr: '…', //for any chain of "..+"
-        id: -2147483647 + 2,
+        id: reservedIdsPunctuationBase + 2,
     },
     punctuationSpec{
         repr: '?',
-        id: -2147483647 + 3,
+        id: reservedIdsPunctuationBase + 3,
     },
     punctuationSpec{
         repr: '!',
-        id: -2147483647 + 4,
+        id: reservedIdsPunctuationBase + 4,
     },
     punctuationSpec{
         repr: ';',
-        id: -2147483647 + 5,
+        id: reservedIdsPunctuationBase + 5,
     },
     punctuationSpec{
         repr: ':',
-        id: -2147483647 + 6,
+        id: reservedIdsPunctuationBase + 6,
     },
     punctuationSpec{
         repr: '⁈', //for any mixed sequence of "?" and "!"
-        id: -2147483647 + 7,
+        id: reservedIdsPunctuationBase + 7,
     },
     punctuationSpec{
         repr: '‼', //for any chain of "!!+"
-        id: -2147483647 + 8,
+        id: reservedIdsPunctuationBase + 8,
     },
     punctuationSpec{
         repr: '⁇', //for any chain of "??+"
-        id: -2147483647 + 9,
+        id: reservedIdsPunctuationBase + 9,
     },
     punctuationSpec{
         repr: '—',
-        id: -2147483647 + 10,
+        id: reservedIdsPunctuationBase + 10,
     },
     punctuationSpec{
         repr: '&',
-        id: -2147483647 + 11,
+        id: reservedIdsPunctuationBase + 11,
     },
 } //there's an upper limit of `reservedIdsPunctuation` elements on this structure
 
@@ -67,8 +70,25 @@ var Punctuation = [12]punctuationSpec{
 var PunctuationIdsByToken map[string]int = make(map[string]int, len(Punctuation))
 var PunctuationTokensById map[int]string = make(map[int]string, len(Punctuation))
 func init() {
+    if len(Punctuation) > reservedIdsPunctuation {
+        panic(fmt.Sprintf("punctuation-count exceeds reserved limit"))
+    }
+    
+    maxId := reservedIdsPunctuationBase + reservedIdsPunctuation
     for _, ps := range Punctuation {
-        PunctuationIdsByToken[string(ps.repr)] = ps.id
-        PunctuationTokensById[ps.id] = string(ps.repr)
+        if ps.id < reservedIdsPunctuationBase || ps.id >  + maxId {
+            panic(fmt.Sprintf("punctuation ID %d is out of range", ps.id))
+        }
+        
+        sRepr := string(ps.repr)
+        if _, defined := PunctuationIdsByToken[sRepr]; defined {
+            panic(fmt.Sprintf("duplicate punctuation definition for %s", sRepr))
+        }
+        PunctuationIdsByToken[sRepr] = ps.id
+        
+        if _, defined := SymbolsTokensById[ps.id]; defined {
+            panic(fmt.Sprintf("duplicate punctuation ID definition for %d", ps.id))
+        }
+        PunctuationTokensById[ps.id] = sRepr
     }
 }

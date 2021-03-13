@@ -11,7 +11,7 @@ func digestToken(
     digester func([]rune, *transform.Transformer)([]context.ParsedToken, bool),
     normaliser *transform.Transformer,
 ) ([]context.ParsedToken, bool) {
-    parsedTokens := parseSymbol(token)
+    parsedTokens := context.ParseSymbol(token)
     if len(parsedTokens) > 0 {
         return parsedTokens, true
     }
@@ -59,7 +59,7 @@ func lex(
         
         if _, isCharacter := characters[r]; !isCharacter {
             if _, isPunctuation := punctuation[r]; !isPunctuation {
-                if _, isSymbolRune := symbolRunes[r]; !isSymbolRune {
+                if _, isSymbolRune := context.SymbolRunes[r]; !isSymbolRune {
                     if learn {
                         return nil, false
                     }

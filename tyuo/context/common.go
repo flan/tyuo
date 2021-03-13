@@ -23,8 +23,12 @@ type stringset map[string]bool
 
 //used to denote the end of a sentence
 const BoundaryId = -2147483648 //int32 minimum; should constrain database byte-sizing
-const undefinedDictionaryId = BoundaryId + 2048 //int32 minimum, plus space for reserved tokens
-//reservedIdsPunctuation = 32, from -2147483647 to -2147483615
+const undefinedDictionaryId = BoundaryId + 4096 //int32 minimum, plus space for reserved tokens
+const reservedIdsPunctuation = 32 //from -2147483647 to -2147483615
+const reservedIdsPunctuationBase = -2147483647
+const reservedIdsSymbols = 1024 //from -2147483614 to -2147482590
+const reservedIdsSymbolsBase = -2147483614
+
 
 var rng = rand.New(rand.NewSource(time.Now().Unix()))
 
