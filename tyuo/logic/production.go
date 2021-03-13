@@ -512,9 +512,10 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
     searchBranchesBoundaryRemaining := ctx.GetProductionSearchBranchesFromBoundaryInitial()
     productions := make([]production, 0, searchBranchesBoundaryRemaining)
     
-    if ctx.AreQuintgramsEnabled() {
-        if searchBranchesBoundaryRemaining > 0 {
+    if searchBranchesBoundaryRemaining > 0 {
+        if ctx.AreQuintgramsEnabled() {
             if ngrams, err := ctx.GetQuintgramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
+logger.Criticalf("%v", ngrams)
                 for _, ngram := range ngrams {
                     if !ctx.AreIdsAllowed([]int{
                         ngram.GetDictionaryIdSecond(),
@@ -541,9 +542,10 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
         }
     }
     
-    if ctx.AreQuadgramsEnabled() {
-        if searchBranchesBoundaryRemaining > 0 {
+    if searchBranchesBoundaryRemaining > 0 {
+        if ctx.AreQuadgramsEnabled() {
             if ngrams, err := ctx.GetQuadgramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
+logger.Criticalf("%v", ngrams)
                 for _, ngram := range ngrams {
                     if !ctx.AreIdsAllowed([]int{
                         ngram.GetDictionaryIdSecond(),
@@ -568,9 +570,10 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
         }
     }
     
-    if ctx.AreTrigramsEnabled() {
-        if searchBranchesBoundaryRemaining > 0 {
+    if searchBranchesBoundaryRemaining > 0 {
+        if ctx.AreTrigramsEnabled() {
             if ngrams, err := ctx.GetTrigramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
+logger.Criticalf("%v", ngrams)
                 for _, ngram := range ngrams {
                     if !ctx.AreIdsAllowed([]int{
                         ngram.GetDictionaryIdSecond(),
@@ -593,10 +596,11 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
         }
     }
     
-    if ctx.AreDigramsEnabled() {
-        if searchBranchesBoundaryRemaining > 0 {
+    if searchBranchesBoundaryRemaining > 0 {
+        if ctx.AreDigramsEnabled() {
             digramSpec := context.DigramSpec{DictionaryIdFirst: context.BoundaryId}
             if ngrams, err := ctx.GetDigrams(map[context.DigramSpec]bool{digramSpec: false}, forward); err == nil {
+logger.Criticalf("%v", ngrams)
                 if len(ngrams) > 0 {
                     ngram := ngrams[digramSpec]
                     

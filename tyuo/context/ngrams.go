@@ -480,7 +480,7 @@ func learnTrigramsForward(
     }
     
     trigram := trigrams[specOrigin]
-    trigram.increment(BoundaryId)
+    trigram.increment(tokensMap[tokens[1]])
     
     for i := 0; i < len(tokens) - 2; i++ {
         trigram := trigrams[TrigramSpec{
@@ -526,7 +526,7 @@ func learnTrigramsReverse(
     }
     
     trigram := trigrams[specOrigin]
-    trigram.increment(BoundaryId)
+    trigram.increment(tokensMap[tokens[len(tokens) - 1]])
     
     for i := len(tokens) - 1; i >= 2; i-- {
         trigram := trigrams[TrigramSpec{
@@ -608,7 +608,7 @@ func learnQuadgramsForward(
     }
     
     quadgram := quadgrams[specOrigin]
-    quadgram.increment(BoundaryId)
+    quadgram.increment(tokensMap[tokens[2]])
     
     for i := 0; i < len(tokens) - 3; i++ {
         quadgram := quadgrams[QuadgramSpec{
@@ -658,7 +658,7 @@ func learnQuadgramsReverse(
     }
     
     quadgram := quadgrams[specOrigin]
-    quadgram.increment(BoundaryId)
+    quadgram.increment(tokensMap[tokens[len(tokens) - 2]])
     
     for i := len(tokens) - 1; i >= 3; i-- {
         quadgram := quadgrams[QuadgramSpec{
@@ -745,7 +745,7 @@ func learnQuintgramsForward(
     }
     
     quintgram := quintgrams[specOrigin]
-    quintgram.increment(BoundaryId)
+    quintgram.increment(tokensMap[tokens[3]])
     
     for i := 0; i < len(tokens) - 4; i++ {
         quintgram := quintgrams[QuintgramSpec{
@@ -799,7 +799,7 @@ func learnQuintgramsReverse(
     }
     
     quintgram := quintgrams[specOrigin]
-    quintgram.increment(BoundaryId)
+    quintgram.increment(tokensMap[tokens[len(tokens) - 3]])
     
     for i := len(tokens) - 1; i >= 4; i-- {
         quintgram := quintgrams[QuintgramSpec{
