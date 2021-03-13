@@ -265,6 +265,10 @@ var englishErrorWordFragments = []englishErrorWordFragment{
         incorrect: []string{"foriegn"},
     },
     englishErrorWordFragment{
+        correct: "friend",
+        incorrect: []string{"freind"},
+    },
+    englishErrorWordFragment{
         correct: "fulfil",
         incorrect: []string{"fullfil", "fulfill"},
     },
