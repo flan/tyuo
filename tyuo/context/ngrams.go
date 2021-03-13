@@ -118,6 +118,9 @@ func (g *Digram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 func (g *Digram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
 }
+func (g *Digram) GetDictionaryIdFirst() (int) {
+    return g.dictionaryIdFirst
+}
 func (g *Digram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
@@ -144,6 +147,12 @@ func (g *Trigram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 }
 func (g *Trigram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
+}
+func (g *Trigram) GetDictionaryIdFirst() (int) {
+    return g.dictionaryIdFirst
+}
+func (g *Trigram) GetDictionaryIdSecond() (int) {
+    return g.dictionaryIdSecond
 }
 func (g *Trigram) SelectTransitionIds(
     count int,
@@ -173,6 +182,15 @@ func (g *Quadgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 }
 func (g *Quadgram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
+}
+func (g *Quadgram) GetDictionaryIdFirst() (int) {
+    return g.dictionaryIdFirst
+}
+func (g *Quadgram) GetDictionaryIdSecond() (int) {
+    return g.dictionaryIdSecond
+}
+func (g *Quadgram) GetDictionaryIdThird() (int) {
+    return g.dictionaryIdThird
 }
 func (g *Quadgram) SelectTransitionIds(
     count int,
@@ -204,6 +222,18 @@ func (g *Quintgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
 }
 func (g *Quintgram) increment(dictionaryId int) {
     transitionsIncrement(g.transitions, dictionaryId) 
+}
+func (g *Quintgram) GetDictionaryIdFirst() (int) {
+    return g.dictionaryIdFirst
+}
+func (g *Quintgram) GetDictionaryIdSecond() (int) {
+    return g.dictionaryIdSecond
+}
+func (g *Quintgram) GetDictionaryIdThird() (int) {
+    return g.dictionaryIdThird
+}
+func (g *Quintgram) GetDictionaryIdFourth() (int) {
+    return g.dictionaryIdFourth
 }
 func (g *Quintgram) SelectTransitionIds(
     count int,
@@ -253,7 +283,7 @@ func learnDigramsForward(
         digram.increment(tokensMap[tokens[i + 1]])
     }
     
-    digram := digrams[DigramSpec{
+    digram = digrams[DigramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 1]],
     }]
     digram.increment(BoundaryId)
@@ -295,7 +325,7 @@ func learnDigramsReverse(
         digram.increment(tokensMap[tokens[i - 1]])
     }
     
-    digram := digrams[DigramSpec{
+    digram = digrams[DigramSpec{
         DictionaryIdFirst: tokensMap[tokens[0]],
     }]
     digram.increment(BoundaryId)
@@ -375,7 +405,7 @@ func learnTrigramsForward(
         trigram.increment(tokensMap[tokens[i + 2]])
     }
     
-    trigram := trigrams[TrigramSpec{
+    trigram = trigrams[TrigramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 2]],
         DictionaryIdSecond: tokensMap[tokens[len(tokens) - 1]],
     }]
@@ -421,7 +451,7 @@ func learnTrigramsReverse(
         trigram.increment(tokensMap[tokens[i - 2]])
     }
     
-    trigram := trigrams[TrigramSpec{
+    trigram = trigrams[TrigramSpec{
         DictionaryIdFirst: tokensMap[tokens[1]],
         DictionaryIdSecond: tokensMap[tokens[0]],
     }]
@@ -504,7 +534,7 @@ func learnQuadgramsForward(
         quadgram.increment(tokensMap[tokens[i + 3]])
     }
     
-    quadgram := quadgrams[QuadgramSpec{
+    quadgram = quadgrams[QuadgramSpec{
         DictionaryIdFirst: tokensMap[tokens[len(tokens) - 3]],
         DictionaryIdSecond: tokensMap[tokens[len(tokens) - 2]],
         DictionaryIdThird: tokensMap[tokens[len(tokens) - 1]],
@@ -554,7 +584,7 @@ func learnQuadgramsReverse(
         quadgram.increment(tokensMap[tokens[i - 3]])
     }
     
-    quadgram := quadgrams[QuadgramSpec{
+    quadgram = quadgrams[QuadgramSpec{
         DictionaryIdFirst: tokensMap[tokens[2]],
         DictionaryIdSecond: tokensMap[tokens[1]],
         DictionaryIdThird: tokensMap[tokens[0]],

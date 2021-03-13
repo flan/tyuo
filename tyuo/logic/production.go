@@ -1,204 +1,15 @@
 package logic
 import (
+    "reflect"
+    
     "github.com/flan/tyuo/context"
 )
 
-func produceOrigin(ctx *context.Context, id int, forward bool) ([]production, error) {
-    
-    //use goroutines sparingly
-    
-    return nil, nil
-}
-func produceNgram(ctx *context.Context, path production, forward bool) ([]production, error) {
-    
-    //use goroutines sparingly
-    
-    return nil, nil
-}
 
 
 
-
-
-
-func produceFromNgram(ctx *context.Context, path production, forward bool, results chan<- production) {
-    
-    
-    
-}
-
-func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, forward bool, results chan<- production) {
-    //deal with errors in here
-    //each instance spawns no goroutines, so respect the stack
-    
-    recursively call produceFromNgram
-}
-
-
-func produceStarters(ctx *context.Context, id int, forward bool) ([]production, error) {
-    
-    
-    
-    
-    func (c *Context) GetQuintgramsOrigin(
-    dictionaryIdFirst int,
-    count int,
-    forward bool,
-) ([]Quintgram, error) {
-    return c.database.quintgramsGetOnlyFirst(
-        dictionaryIdFirst,
-        count,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-    
-    
-    
-    
-    func (c *Context) GetQuadgramsOrigin(
-    dictionaryIdFirst int,
-    count int,
-    forward bool,
-) ([]Quadgram, error) {
-    return c.database.quadgramsGetOnlyFirst(
-        dictionaryIdFirst,
-        count,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-    
-    
-    
-    
-    func (c *Context) GetTrigramsOrigin(
-    dictionaryIdFirst int,
-    count int,
-    forward bool,
-) ([]Trigram, error) {
-    return c.database.trigramsGetOnlyFirst(
-        dictionaryIdFirst,
-        count,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-
-
-    origin Digrams are just a special case of GetDigrams():
-    first = target ID
-    if len(results) == 1, then something was found
-    
-
-    
-}
-
-
-
-//picks ID as starting points and produces a slice of productions
-func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
-    
-    
-    
-    //generate the initial ngrams based on the selected tokens
-    //then create the results channel and kick off a goroutine for each entity,
-    //possibly using a workerpool
-    
-    ctx.GetMaxParallelOperations()
-    
-    //create a slice of channels for each goroutine and just iterate over that slice,
-    //consuming each one until it's closed
-    //this will ensure each is able to run to completion and it won't matter if one
-    //finishes early
-    //when consuming the output, it can be fed into the next channel immediately,
-    //even if the goroutines to consume it haven't yet begun
-    
-    //there'll probably be some sensible way to split the pool, too, once implementation
-    //starts
-    
-    //use goroutines liberally
-    
-    //for each ID, spawn a bunch of forward and backwards searches
-    //if there are fewer IDs that desired for the initial search, pick
-    //more origin n-grams to fill out the range
-    //for each forward search that produces a result, do a backwards
-    //n-gram search; likewise in the other direction
-    //maybe this could use a channel so there's a constant pipeline
-    
-    //it could probably be a workerpool on the channel
-    //https://gobyexample.com/worker-pools
-    
-    return nil, nil
-}
-
-
-
-func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, error) {
-    
-    
-    func (c *Context) GetQuintgramsFromBoundary(
-    dictionaryIdSecond int,
-    count int,
-    forward bool,
-) ([]Quintgram, error) {
-    return c.database.quintgramsGetFromBoundary(
-        dictionaryIdSecond,
-        count,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-
-    
-    func (c *Context) GetQuadgramsFromBoundary(
-    dictionaryIdSecond int,
-    count int,
-    forward bool,
-) ([]Quintgram, error) {
-    return c.database.quadgramsGetFromBoundary(
-        dictionaryIdSecond,
-        count,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-
-    
-    boundary trigrams are just a special case of GetTrigrams():
-    first = context.BoundaryId
-    second = target trigram
-    if len(result) == 1 then a match was found
-    
-    
-    boundary digrams are just a special case of GetDigrams():
-    first = context.BoundaryId
-    if len(result) == 1 then a match was found (which should always happen)
-    
-}
-
-
-//picks ID as starting points and produces a slice of productions
-func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward int, countReverse int) ([]production, error) {
-    //use goroutines liberally
-    
-    //query for n-grams in desending order using the terminal ID
-    
-    //for each ID, do a search in that direction and return whatever comes back
-    
-    keytokenIdsSet := make(map[int]bool, len(keytokenIds))
-    for _, id := range keytokenIds {
-        keytokenIdsSet[id] = false
-    }
-    //at each step, if a keytoken is found, copy the set without it and pick that branch;
-    //otherwise, just pass the set forward until the walk ends
-    
-    return nil, nil
-}
 
 /*
-    //how many paths to explore from the initial token, in both directions
-    SearchBranchesInitial int //try 3
     //how many paths each child should enumerate (but not necessarily explore)
     SearchBranchesChildren int //try 8
 
@@ -315,3 +126,552 @@ func (c *Context) GetQuintgrams(
     )
 }
 */
+
+
+
+func produceFromNgram(ctx *context.Context, path production, keytokenIdsSet map[int]bool, forward bool) ([]production, error) {
+    productions := make([]production, 0, 1)
+    
+    
+    //return any productions made in this node and below in the recursive walk
+    
+    //at each step, if a keytoken is found, copy the set without it and pick that branch;
+    //otherwise, just pass the set forward until the walk ends
+    
+    return productions, nil
+}
+
+func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, keytokenIdsSet map[int]bool, forward bool, results chan<- production) {
+    //deal with errors in here
+    //each instance spawns no goroutines, so respect the stack
+    
+    //recursively call produceFromNgram, which does the work of querying the database and enumerating transitions
+    
+    //when it returns, if direction is not forward, reverse each production and join it with the starter before writing it to results
+    //otherwise, just prepend the starter and write that
+    
+    productions := []production{} //returned from produceFromNgram()
+    
+    for _, production := range productions {
+        if !forward { //reverse for consistency
+            for i, j := 0, len(production) - 1; i < j; i, j = i + 1, j - 1 {
+                production[i], production[j] = production[j], production[i]
+            }
+        }
+        results <- production
+    }
+}
+
+
+func produceStarters(ctx *context.Context, id int, forward bool) ([]production, error) {
+    //if an n-gram enumeration turns up a banned option, that's just bad luck; carry on and let the fallback strategies deal with it
+    
+    searchBranchesRemaining := ctx.GetSearchBranchesInitial()
+    searchBranchesBoundaryRemaining := ctx.GetSearchBranchesFromBoundaryInitial()
+    productions := make([]production, 0, searchBranchesRemaining)
+    
+    if ctx.AreQuintgramsEnabled() {
+        if searchBranchesRemaining > 0 {
+            if ngrams, err := ctx.GetQuintgramsOrigin(id, searchBranchesRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdSecond(),
+                        ngram.GetDictionaryIdThird(),
+                        ngram.GetDictionaryIdFourth(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdFirst(),
+                            ngram.GetDictionaryIdSecond(),
+                            ngram.GetDictionaryIdThird(),
+                            ngram.GetDictionaryIdFourth(),
+                            transitionIds[0],
+                        })
+                        searchBranchesRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+        if searchBranchesBoundaryRemaining > 0 {
+            if ngrams, err := ctx.GetQuintgramsFromBoundary(id, searchBranchesBoundaryRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdThird(),
+                        ngram.GetDictionaryIdFourth(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdSecond(),
+                            ngram.GetDictionaryIdThird(),
+                            ngram.GetDictionaryIdFourth(),
+                            transitionIds[0],
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if ctx.AreQuadgramsEnabled() {
+        if searchBranchesRemaining > 0 {
+            if ngrams, err := ctx.GetQuadgramsOrigin(id, searchBranchesRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdSecond(),
+                        ngram.GetDictionaryIdThird(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdFirst(),
+                            ngram.GetDictionaryIdSecond(),
+                            ngram.GetDictionaryIdThird(),
+                            transitionIds[0],
+                        })
+                        searchBranchesRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+        if searchBranchesBoundaryRemaining > 0 {
+            if ngrams, err := ctx.GetQuadgramsFromBoundary(id, searchBranchesBoundaryRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdThird(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdSecond(),
+                            ngram.GetDictionaryIdThird(),
+                            transitionIds[0],
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if ctx.AreTrigramsEnabled() {
+        if searchBranchesRemaining > 0 {
+            if ngrams, err := ctx.GetTrigramsOrigin(id, searchBranchesRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdSecond(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdFirst(),
+                            ngram.GetDictionaryIdSecond(),
+                            transitionIds[0],
+                        })
+                        searchBranchesRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+        if searchBranchesBoundaryRemaining > 0 {
+            trigramSpec := context.TrigramSpec{DictionaryIdFirst: context.BoundaryId, DictionaryIdSecond: id}
+            if ngrams, err := ctx.GetTrigrams(map[context.TrigramSpec]bool{trigramSpec: false}, forward); err == nil {
+                if len(ngrams) > 0 {
+                    ngram := ngrams[trigramSpec]
+                    
+                    transitionIds := ngram.SelectTransitionIds(searchBranchesBoundaryRemaining, ctx.GetIdsBannedStatus)
+                    for _, transitionId := range transitionIds {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdSecond(),
+                            transitionId,
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if ctx.AreDigramsEnabled() {
+        if searchBranchesRemaining > 0 {
+            digramSpec := context.DigramSpec{DictionaryIdFirst: id}
+            if ngrams, err := ctx.GetDigrams(map[context.DigramSpec]bool{digramSpec: false}, forward); err == nil {
+                if len(ngrams) > 0 {
+                    ngram := ngrams[digramSpec]
+                    
+                    transitionIds := ngram.SelectTransitionIds(searchBranchesRemaining, ctx.GetIdsBannedStatus)
+                    for _, transitionId := range transitionIds {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdFirst(),
+                            transitionId,
+                        })
+                        searchBranchesRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+        //NOTE: no digrams from boundary, since there are no qualifying search criteria
+    }
+    
+    if !forward { //reverse all productions for consistency
+        for _, production := range productions {
+            for i, j := 0, len(production) - 1; i < j; i, j = i + 1, j - 1 {
+                production[i], production[j] = production[j], production[i]
+            }
+        }
+    }
+    
+    return productions, nil
+}
+
+
+func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
+    maxInitialProductions := (ctx.GetSearchBranchesInitial() + ctx.GetSearchBranchesFromBoundaryInitial()) * len(ids)
+    maxParallelOperations := ctx.GetMaxParallelOperations()
+    finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren() * 2)
+    
+    
+    //do forward entries first to avoid clashing cache-locality with reverse-lookup pages
+    queue := make(chan production, maxInitialProductions)
+    for _, id := range ids {
+        if productions, err := produceStarters(ctx, id, true); err == nil {
+            for _, production := range productions {
+                queue <- production
+            }
+        } else {
+            return nil, err
+        }
+    }
+    close(queue)
+    
+    fragmentSources := make([](chan production), min(maxParallelOperations, len(queue)))
+    cases := make([]reflect.SelectCase, len(fragmentSources))
+    for i, fragmentSource := range fragmentSources {
+        cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(fragmentSource)}
+        go produceFromNgramOrigin(ctx, queue, nil, true, fragmentSource)
+    }
+    fragments := make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren())
+    remaining := len(cases)
+    for remaining > 0 {
+        chosen, value, received := reflect.Select(cases)
+        if !received { //the channel was closed, so stop watching it
+            cases[chosen].Chan = reflect.ValueOf(nil)
+            remaining--
+            continue
+        }
+        fragments = append(fragments, value.Interface().(production))
+    }
+    
+    
+    //next, do a reverse-search to finish each production
+    queue = make(chan production, len(fragments))
+    for _, fragment := range fragments {
+        queue <- fragment
+    }
+    close(queue)
+    fragments = nil
+    
+    finisherSources := make([](chan production), min(maxParallelOperations, len(queue)))
+    cases = make([]reflect.SelectCase, len(finisherSources))
+    for i, finisherSource := range finisherSources {
+        cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
+        go produceFromNgramOrigin(ctx, queue, nil, false, finisherSource)
+    }
+    remaining = len(cases)
+    for remaining > 0 {
+        chosen, value, received := reflect.Select(cases)
+        if !received { //the channel was closed, so stop watching it
+            cases[chosen].Chan = reflect.ValueOf(nil)
+            remaining--
+            continue
+        }
+        finishedProductions = append(finishedProductions, value.Interface().(production))
+    }
+    
+    
+    //forwards-origin productions are done, so now do the reverse paths
+    queue = make(chan production, maxInitialProductions)
+    for _, id := range ids {
+        if productions, err := produceStarters(ctx, id, false); err == nil {
+            for _, production := range productions {
+                queue <- production
+            }
+        } else {
+            return nil, err
+        }
+    }
+    close(queue)
+    
+    fragmentSources = make([](chan production), min(maxParallelOperations, len(queue)))
+    cases = make([]reflect.SelectCase, len(fragmentSources))
+    for i, fragmentSource := range fragmentSources {
+        cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(fragmentSource)}
+        go produceFromNgramOrigin(ctx, queue, nil, false, fragmentSource)
+    }
+    fragments = make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren())
+    remaining = len(cases)
+    for remaining > 0 {
+        chosen, value, received := reflect.Select(cases)
+        if !received { //the channel was closed, so stop watching it
+            cases[chosen].Chan = reflect.ValueOf(nil)
+            remaining--
+            continue
+        }
+        fragments = append(fragments, value.Interface().(production))
+    }
+    
+    
+    //next, do a forward-search to finish each production
+    queue = make(chan production, len(fragments))
+    for _, fragment := range fragments {
+        queue <- fragment
+    }
+    close(queue)
+    fragments = nil
+    
+    finisherSources = make([](chan production), min(maxParallelOperations, len(queue)))
+    cases = make([]reflect.SelectCase, len(finisherSources))
+    for i, finisherSource := range finisherSources {
+        cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
+        go produceFromNgramOrigin(ctx, queue, nil, true, finisherSource)
+    }
+    remaining = len(cases)
+    for remaining > 0 {
+        chosen, value, received := reflect.Select(cases)
+        if !received { //the channel was closed, so stop watching it
+            cases[chosen].Chan = reflect.ValueOf(nil)
+            remaining--
+            continue
+        }
+        finishedProductions = append(finishedProductions, value.Interface().(production))
+    }
+    
+    
+    return finishedProductions, nil
+}
+
+
+
+func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, error) {
+    //if an n-gram enumeration turns up a banned option, that's just bad luck; carry on and let the fallback strategies deal with it
+    
+    searchBranchesBoundaryRemaining := ctx.GetSearchBranchesFromBoundaryInitial()
+    productions := make([]production, 0, searchBranchesBoundaryRemaining)
+    
+    if ctx.AreQuintgramsEnabled() {
+        if searchBranchesBoundaryRemaining > 0 {
+            if ngrams, err := ctx.GetQuintgramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdSecond(),
+                        ngram.GetDictionaryIdThird(),
+                        ngram.GetDictionaryIdFourth(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdSecond(),
+                            ngram.GetDictionaryIdThird(),
+                            ngram.GetDictionaryIdFourth(),
+                            transitionIds[0],
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if ctx.AreQuadgramsEnabled() {
+        if searchBranchesBoundaryRemaining > 0 {
+            if ngrams, err := ctx.GetQuadgramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdSecond(),
+                        ngram.GetDictionaryIdThird(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdSecond(),
+                            ngram.GetDictionaryIdThird(),
+                            transitionIds[0],
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if ctx.AreTrigramsEnabled() {
+        if searchBranchesBoundaryRemaining > 0 {
+            if ngrams, err := ctx.GetTrigramsOrigin(context.BoundaryId, searchBranchesBoundaryRemaining, forward); err == nil {
+                for _, ngram := range ngrams {
+                    if !ctx.AreIdsAllowed([]int{
+                        ngram.GetDictionaryIdSecond(),
+                    }) { //contains a banned value
+                        continue
+                    }
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    if len(transitionIds) > 0 {
+                        productions = append(productions, production{
+                            ngram.GetDictionaryIdSecond(),
+                            transitionIds[0],
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if ctx.AreDigramsEnabled() {
+        if searchBranchesBoundaryRemaining > 0 {
+            digramSpec := context.DigramSpec{DictionaryIdFirst: context.BoundaryId}
+            if ngrams, err := ctx.GetDigrams(map[context.DigramSpec]bool{digramSpec: false}, forward); err == nil {
+                if len(ngrams) > 0 {
+                    ngram := ngrams[digramSpec]
+                    
+                    transitionIds := ngram.SelectTransitionIds(1, ctx.GetIdsBannedStatus)
+                    for _, transitionId := range transitionIds {
+                        productions = append(productions, production{
+                            transitionId,
+                        })
+                        searchBranchesBoundaryRemaining--
+                    }
+                }
+            } else {
+                return nil, err
+            }
+        }
+    }
+    
+    if !forward { //reverse all productions for consistency
+        for _, production := range productions {
+            for i, j := 0, len(production) - 1; i < j; i, j = i + 1, j - 1 {
+                production[i], production[j] = production[j], production[i]
+            }
+        }
+    }
+    
+    return productions, nil
+}
+
+
+//picks ID as starting points and produces a slice of productions
+func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward int, countReverse int) ([]production, error) {
+    keytokenIdsSet := make(map[int]bool, len(keytokenIds))
+    for _, id := range keytokenIds {
+        keytokenIdsSet[id] = false
+    }
+    
+    maxInitialProductions := ctx.GetSearchBranchesFromBoundaryInitial()
+    maxParallelOperations := ctx.GetMaxParallelOperations()
+    finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren() * 2)
+    
+    
+    //do forward entries first for consistency
+    queue := make(chan production, maxInitialProductions)
+    if productions, err := produceTerminalStarters(ctx, true); err == nil {
+        for _, production := range productions {
+            queue <- production
+        }
+    } else {
+        return nil, err
+    }
+    close(queue)
+    
+    finisherSources := make([](chan production), min(maxParallelOperations, len(queue)))
+    cases := make([]reflect.SelectCase, len(finisherSources))
+    for i, finisherSource := range finisherSources {
+        cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
+        go produceFromNgramOrigin(ctx, queue, keytokenIdsSet, true, finisherSource)
+    }
+    remaining := len(cases)
+    for remaining > 0 {
+        chosen, value, received := reflect.Select(cases)
+        if !received { //the channel was closed, so stop watching it
+            cases[chosen].Chan = reflect.ValueOf(nil)
+            remaining--
+            continue
+        }
+        finishedProductions = append(finishedProductions, value.Interface().(production))
+    }
+    
+    
+    //forwards-origin productions are done, so now do the reverse paths
+    queue = make(chan production, maxInitialProductions)
+    if productions, err := produceTerminalStarters(ctx, false); err == nil {
+        for _, production := range productions {
+            queue <- production
+        }
+    } else {
+        return nil, err
+    }
+    close(queue)
+    
+    finisherSources = make([](chan production), min(maxParallelOperations, len(queue)))
+    cases = make([]reflect.SelectCase, len(finisherSources))
+    for i, finisherSource := range finisherSources {
+        cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
+        go produceFromNgramOrigin(ctx, queue, keytokenIdsSet, false, finisherSource)
+    }
+    remaining = len(cases)
+    for remaining > 0 {
+        chosen, value, received := reflect.Select(cases)
+        if !received { //the channel was closed, so stop watching it
+            cases[chosen].Chan = reflect.ValueOf(nil)
+            remaining--
+            continue
+        }
+        finishedProductions = append(finishedProductions, value.Interface().(production))
+    }
+    
+    
+    return finishedProductions, nil
+}

@@ -75,9 +75,9 @@ type contextConfigProduction struct {
     //how many paths to explore from the initial token, in both directions
     SearchBranchesInitial int //try 3
     //how many paths to explore from the bounary, in both directions
-    SearchBranchesFromBoundaryInitial //try 1
+    SearchBranchesFromBoundaryInitial int //try 1
     //how many paths each child should enumerate (but not necessarily explore)
-    SearchBranchesChildren int //try 8
+    SearchBranchesChildren int //try 2
 
     //the minimum number of tokens that need to be produced
     MinLength int
@@ -224,6 +224,16 @@ func (c *Context) UnbanSubstrings(substrings []string) (error) {
 func (c *Context) GetProductionTokensInitial() (int) {
     return c.config.Production.TokensInitial
 }
+func (c *Context) GetSearchBranchesInitial() (int) {
+    return c.config.Production.SearchBranchesInitial
+}
+func (c *Context) GetSearchBranchesFromBoundaryInitial() (int) {
+    return c.config.Production.SearchBranchesFromBoundaryInitial
+}
+func (c *Context) GetSearchBranchesChildren() (int) {
+    return c.config.Production.SearchBranchesChildren
+}
+
 func (c *Context) GetMaxParallelOperations() (int) {
     return c.config.Production.MaxParallelOperations
 }
@@ -295,7 +305,7 @@ func (c *Context) GetQuadgramsFromBoundary(
     dictionaryIdSecond int,
     count int,
     forward bool,
-) ([]Quintgram, error) {
+) ([]Quadgram, error) {
     return c.database.quadgramsGetFromBoundary(
         dictionaryIdSecond,
         count,
@@ -348,7 +358,14 @@ func (c *Context) IsAllowed(s string) (bool) {
 func (c *Context) GetIdsBannedStatus(ids []int) (map[int]bool) {
     return c.bannedDictionary.getIdsBannedStatus(intSliceToSet(ids))
 }
-
+func (c *Context) AreIdsAllowed(ids []int) (bool) {
+    for _, banned := range c.GetIdsBannedStatus(ids) {
+        if banned {
+            return false
+        }
+    }
+    return true
+}
 
 func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     if len(tokens) == 0 {

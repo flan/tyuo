@@ -21,7 +21,7 @@
         "TokensInitial": 2,
         "SearchBranchesInitial": 3,
         "SearchBranchesFromBoundaryInitial": 1,
-        "SearchBranchesChildren": 8,
+        "SearchBranchesChildren": 2,
 
         "MinLength": 5,
         "MaxLength": 30,
