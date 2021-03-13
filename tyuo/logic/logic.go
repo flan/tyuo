@@ -45,6 +45,7 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
             logger.Errorf("unable to build productions: %s", err)
             return nil
         }
+logger.Criticalf("productions-keyword: %v", productions)
         scoredProductions, err = score(ctx, productions)
         if err != nil {
             logger.Errorf("unable to score productions: %s", err)
@@ -62,6 +63,7 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
             logger.Errorf("unable to build productions: %s", err)
             return nil
         }
+logger.Criticalf("productions-walk: %v", productions)
         scoredProductions, err = score(ctx, productions)
         if err != nil {
             logger.Errorf("unable to score productions: %s", err)

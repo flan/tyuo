@@ -6,168 +6,218 @@ import (
 )
 
 
+func produceDecideStop(ctx *context.Context, pathLen int, minLength int) (bool) {
+    if pathLen >= minLength {
+        if pathLen >= ctx.GetProductionTargetMinLength() {
+            if rng.Float32() < ctx.GetProductionTargetStopProbability() {
+                return true
+            }
+        } else {
+            if rng.Float32() < ctx.GetProductionStopProbability() {
+                return true
+            }
+        }
+    }
+    return false
+}
 
+func producePrepareReducedKeytokenIdsSet(keytokenIdsSet map[int]bool, chosenId int) (map[int]bool) {
+    newKeyTokenIdsSet := make(map[int]bool, len(keytokenIdsSet) - 1)
+    for k, v := range keytokenIdsSet {
+        if k != chosenId {
+            newKeyTokenIdsSet[k] = v
+        }
+    }
+    return newKeyTokenIdsSet
+}
 
-
-/*
-    //how many paths each child should enumerate (but not necessarily explore)
-    SearchBranchesChildren int //try 8
-
-    //the minimum number of tokens that need to be produced
-    MinLength int
-    //the upper limit on how long a production can be
-    MaxLength int
-    //the likelihood of stopping production, upon finding a terminal,
-    //before reaching the target range
-    StopProbability float32
-
-    //the minimum desired length of a production
-    TargetMinLength int
-    //the maximum desired length of a production
-    TargetMaxLength int
-    //the likelihood of stopping production, upon finding a terminal,
-    //after reaching the target range
-    TargetStopProbability float32
-    //NOTE: for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
-*/
+func produceFromNgram(ctx *context.Context, path production, minLength int, keytokenIdsSet map[int]bool, forward bool) ([]production, error) {
+    searchBranches := ctx.GetProductionSearchBranchesChildren()
+    pathLen := len(path)
+    stopConsidered := false
     
-
-
-
-
-
-//when generating paths from the top level, run each searchBranch in its
-//own goroutine, so there should be ten in the base case, all doing reads
-//on the database; this should be fine, since only one request can be served
-//by each context at any time and creation and learning are separate flows --
-//creation is strictly read-only
-
-
-//when producing, do N forward walks from the keyword and N reverse walks,
-//then, for each of the paths that come back (probably grouped by common
-//pattern), do a reverse-walk that looks at the full n-gram pattern and
-//combine those, rather than the two-start-from-keyword MegaHAL approach.
-
-//if there are no viable chains after scoring, then do N forward and reverse
-//walks from the start and end positions, score them, and return that
-
-
-
-//the number of sibling-branches to consider for each node in depth-first
-//traversal
-//the expectation is that each one will produce roughly one result
-//Each of the initial branches will be probed, but beyond that, on
-//each successive node, each sibling will be tried in order received from the
-//database (which is random), and any terminals encountered will produce a
-//new forward/reverse option
-
-//NOTE: when looking at transition options, select searchBranches in total, but
-//choose anything containing an unencountered keyword first, before doing
-//a random/weighted pick of the remainder
-//to make this efficient, the keyword-set should be a hash-set, maybe
-//with a boolean value set to true/false in each node, if it's expensive to copy it;
-//flipped values could be tracked in a slice and restored before returning
-
-//when reaching a stopping point, as the stack is retraversed upwards,
-//the next sibling is selected only if there are no candidates from
-//traversing the previous branch.
-
-//after falling back to a trigram search, the first terminal found, beyond minDepth,
-//will end that discovery path
-
-//when doing a markov walk, choose anything in the keyword set first, if possible
-
-/*
-
-func (c *Context) GetDigrams(
-    specs map[DigramSpec]bool,
-    forward bool,
-) (map[DigramSpec]Digram, error) {
-    return c.database.digramsGet(
-        specs,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-
-
-func (c *Context) GetTrigrams(
-    specs map[TrigramSpec]bool,
-    forward bool,
-) (map[TrigramSpec]Trigram, error) {
-    return c.database.trigramsGet(
-        specs,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-
-
-func (c *Context) GetQuadgrams(
-    specs map[QuadgramSpec]bool,
-    forward bool,
-) (map[QuadgramSpec]Quadgram, error) {
-    return c.database.quadgramsGet(
-        specs,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-
-
-func (c *Context) GetQuintgrams(
-    specs map[QuintgramSpec]bool,
-    forward bool,
-) (map[QuintgramSpec]Quintgram, error) {
-    return c.database.quintgramsGet(
-        specs,
-        forward,
-        c.getOldestAllowedTime(),
-    )
-}
-*/
-
-
-
-func produceFromNgram(ctx *context.Context, path production, keytokenIdsSet map[int]bool, forward bool) ([]production, error) {
+    transitionsSelected := false
+    transitionIds := make([]int, 0, searchBranches)
     productions := make([]production, 0, 1)
     
+    if !transitionsSelected && ctx.AreQuintgramsEnabled() && pathLen >= 4 {
+        ngramSpec := context.QuintgramSpec{
+            DictionaryIdFirst: path[pathLen - 4],
+            DictionaryIdSecond: path[pathLen - 3],
+            DictionaryIdThird: path[pathLen - 2],
+            DictionaryIdFourth: path[pathLen - 1],
+        }
+        ngrams, err := ctx.GetQuintgrams(map[context.QuintgramSpec]bool{ngramSpec: false}, forward)
+        if err != nil {
+            return nil, err
+        }
+        if len(ngrams) > 0 {
+            ngram := ngrams[ngramSpec]
+            if ngram.IsTerminal() { //this is a potential ending point
+                if !stopConsidered {
+                    productions = append(productions, path)
+                    if produceDecideStop(ctx, pathLen, minLength) {
+                        return productions, nil
+                    }
+                    stopConsidered = true
+                }
+            }
+            if len(keytokenIdsSet) > 0 {
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions[:1]
+                    transitionsSelected = true
+                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
+                }
+            }
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionsSelected = len(transitionIds) >= searchBranches
+        }
+    }
     
-    //return any productions made in this node and below in the recursive walk
+    if !transitionsSelected && ctx.AreQuadgramsEnabled() && pathLen >= 3 {
+        ngramSpec := context.QuadgramSpec{
+            DictionaryIdFirst: path[pathLen - 3],
+            DictionaryIdSecond: path[pathLen - 2],
+            DictionaryIdThird: path[pathLen - 1],
+        }
+        ngrams, err := ctx.GetQuadgrams(map[context.QuadgramSpec]bool{ngramSpec: false}, forward)
+        if err != nil {
+            return nil, err
+        }
+        if len(ngrams) > 0 {
+            ngram := ngrams[ngramSpec]
+            if ngram.IsTerminal() { //this is a potential ending point
+                if !stopConsidered {
+                    productions = append(productions, path)
+                    if produceDecideStop(ctx, pathLen, minLength) {
+                        return productions, nil
+                    }
+                    stopConsidered = true
+                }
+            }
+            if len(keytokenIdsSet) > 0 {
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions[:1]
+                    transitionsSelected = true
+                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
+                }
+            }
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionsSelected = len(transitionIds) >= searchBranches
+        }
+    }
     
-    //at each step, if a keytoken is found, copy the set without it and pick that branch;
-    //otherwise, just pass the set forward until the walk ends
+    if !transitionsSelected && ctx.AreTrigramsEnabled() && pathLen >= 2 {
+        ngramSpec := context.TrigramSpec{
+            DictionaryIdFirst: path[pathLen - 2],
+            DictionaryIdSecond: path[pathLen - 1],
+        }
+        ngrams, err := ctx.GetTrigrams(map[context.TrigramSpec]bool{ngramSpec: false}, forward)
+        if err != nil {
+            return nil, err
+        }
+        if len(ngrams) > 0 {
+            ngram := ngrams[ngramSpec]
+            if ngram.IsTerminal() { //this is a potential ending point
+                if !stopConsidered {
+                    productions = append(productions, path)
+                    if produceDecideStop(ctx, pathLen, minLength) {
+                        return productions, nil
+                    }
+                    stopConsidered = true
+                }
+            }
+            if len(keytokenIdsSet) > 0 {
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions[:1]
+                    transitionsSelected = true
+                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
+                }
+            }
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionsSelected = len(transitionIds) >= searchBranches
+        }
+    }
     
+    if !transitionsSelected && ctx.AreDigramsEnabled() && pathLen >= 1 {
+        ngramSpec := context.DigramSpec{
+            DictionaryIdFirst: path[pathLen - 1],
+        }
+        ngrams, err := ctx.GetDigrams(map[context.DigramSpec]bool{ngramSpec: false}, forward)
+        if err != nil {
+            return nil, err
+        }
+        if len(ngrams) > 0 {
+            ngram := ngrams[ngramSpec]
+            if ngram.IsTerminal() { //this is a potential ending point
+                if !stopConsidered {
+                    productions = append(productions, path)
+                    if produceDecideStop(ctx, pathLen, minLength) {
+                        return productions, nil
+                    }
+                    stopConsidered = true
+                }
+            }
+            if len(keytokenIdsSet) > 0 {
+                if preferredTransitions := ngram.ChooseTransitionIds(keytokenIdsSet); len(preferredTransitions) > 0 {
+                    transitionIds = preferredTransitions[:1]
+                    transitionsSelected = true
+                    keytokenIdsSet = producePrepareReducedKeytokenIdsSet(keytokenIdsSet, transitionIds[0])
+                }
+            }
+            transitionIds = append(transitionIds, ngram.SelectTransitionIds(searchBranches - len(transitionIds), ctx.GetIdsBannedStatus)...)
+            transitionsSelected = len(transitionIds) >= searchBranches
+        }
+    }
+    
+    if pathLen < ctx.GetProductionMaxLength() {
+        for _, transitionId := range transitionIds {
+            newPath := make(production, pathLen + 1)
+            copy(newPath, path)
+            newPath[pathLen] = transitionId
+            if childProductions, err := produceFromNgram(ctx, newPath, minLength, keytokenIdsSet, forward); err == nil {
+                if len(productions) > 0 {
+                    productions = append(productions, childProductions...)
+                }
+                break
+            } else {
+                return nil, err
+            }
+        }
+    }
     return productions, nil
 }
 
-func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, keytokenIdsSet map[int]bool, forward bool, results chan<- production) {
-    //deal with errors in here
-    //each instance spawns no goroutines, so respect the stack
-    
-    //recursively call produceFromNgram, which does the work of querying the database and enumerating transitions
-    
-    //when it returns, if direction is not forward, reverse each production and join it with the starter before writing it to results
-    //otherwise, just prepend the starter and write that
-    
-    productions := []production{} //returned from produceFromNgram()
-    
-    for _, production := range productions {
-        if !forward { //reverse for consistency
-            for i, j := 0, len(production) - 1; i < j; i, j = i + 1, j - 1 {
-                production[i], production[j] = production[j], production[i]
+func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, minLength int, keytokenIdsSet map[int]bool, forward bool, results chan<- production) {
+    for starter := range starters {
+        if !forward { //reverse to make the search logic consistent
+            for i, j := 0, len(starter) - 1; i < j; i, j = i + 1, j - 1 {
+                starter[i], starter[j] = starter[j], starter[i]
             }
         }
-        results <- production
+        
+        if productions, err := produceFromNgram(ctx, starter, minLength, keytokenIdsSet, forward); err == nil {
+            for _, production := range productions {
+                if !forward { //reverse for consistency
+                    for i, j := 0, len(production) - 1; i < j; i, j = i + 1, j - 1 {
+                        production[i], production[j] = production[j], production[i]
+                    }
+                }
+                results <- production
+            }
+        } else {
+            logger.Errorf("unable to complete n-gram search: %s", err)
+        }
     }
+    close(results)
 }
 
 
 func produceStarters(ctx *context.Context, id int, forward bool) ([]production, error) {
     //if an n-gram enumeration turns up a banned option, that's just bad luck; carry on and let the fallback strategies deal with it
     
-    searchBranchesRemaining := ctx.GetSearchBranchesInitial()
-    searchBranchesBoundaryRemaining := ctx.GetSearchBranchesFromBoundaryInitial()
+    searchBranchesRemaining := ctx.GetProductionSearchBranchesInitial()
+    searchBranchesBoundaryRemaining := ctx.GetProductionSearchBranchesFromBoundaryInitial()
     productions := make([]production, 0, searchBranchesRemaining)
     
     if ctx.AreQuintgramsEnabled() {
@@ -357,9 +407,9 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
 
 
 func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
-    maxInitialProductions := (ctx.GetSearchBranchesInitial() + ctx.GetSearchBranchesFromBoundaryInitial()) * len(ids)
-    maxParallelOperations := ctx.GetMaxParallelOperations()
-    finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren() * 2)
+    maxInitialProductions := (ctx.GetProductionSearchBranchesInitial() + ctx.GetProductionSearchBranchesFromBoundaryInitial()) * len(ids)
+    maxParallelOperations := ctx.GetProductionMaxParallelOperations()
+    finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetProductionSearchBranchesChildren() * 2)
     
     
     //do forward entries first to avoid clashing cache-locality with reverse-lookup pages
@@ -375,13 +425,16 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     }
     close(queue)
     
-    fragmentSources := make([](chan production), min(maxParallelOperations, len(queue)))
-    cases := make([]reflect.SelectCase, len(fragmentSources))
-    for i, fragmentSource := range fragmentSources {
+    goroutineCount := min(maxParallelOperations, len(queue))
+    fragmentSources := make([](chan production), 0, goroutineCount)
+    cases := make([]reflect.SelectCase, goroutineCount)
+    for i := 0 ; i < goroutineCount; i++ {
+        fragmentSource := make(chan production, 1)
+        fragmentSources = append(fragmentSources, fragmentSource)
         cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(fragmentSource)}
-        go produceFromNgramOrigin(ctx, queue, nil, true, fragmentSource)
+        go produceFromNgramOrigin(ctx, queue, 0, nil, true, fragmentSource)
     }
-    fragments := make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren())
+    fragments := make([]production, 0, maxInitialProductions * ctx.GetProductionSearchBranchesChildren())
     remaining := len(cases)
     for remaining > 0 {
         chosen, value, received := reflect.Select(cases)
@@ -393,7 +446,6 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
         fragments = append(fragments, value.Interface().(production))
     }
     
-    
     //next, do a reverse-search to finish each production
     queue = make(chan production, len(fragments))
     for _, fragment := range fragments {
@@ -402,11 +454,14 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     close(queue)
     fragments = nil
     
-    finisherSources := make([](chan production), min(maxParallelOperations, len(queue)))
-    cases = make([]reflect.SelectCase, len(finisherSources))
-    for i, finisherSource := range finisherSources {
+    goroutineCount = min(maxParallelOperations, len(queue))
+    finisherSources := make([](chan production), goroutineCount)
+    cases = make([]reflect.SelectCase, goroutineCount)
+    for i := 0 ; i < goroutineCount; i++ {
+        finisherSource := make(chan production, 1)
+        finisherSources = append(finisherSources, finisherSource)
         cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
-        go produceFromNgramOrigin(ctx, queue, nil, false, finisherSource)
+        go produceFromNgramOrigin(ctx, queue, ctx.GetProductionMinLength(), nil, false, finisherSource)
     }
     remaining = len(cases)
     for remaining > 0 {
@@ -433,13 +488,16 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     }
     close(queue)
     
-    fragmentSources = make([](chan production), min(maxParallelOperations, len(queue)))
-    cases = make([]reflect.SelectCase, len(fragmentSources))
-    for i, fragmentSource := range fragmentSources {
+    goroutineCount = min(maxParallelOperations, len(queue))
+    fragmentSources = make([](chan production), 0, goroutineCount)
+    cases = make([]reflect.SelectCase, goroutineCount)
+    for i := 0 ; i < goroutineCount; i++ {
+        fragmentSource := make(chan production, 1)
+        fragmentSources = append(fragmentSources, fragmentSource)
         cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(fragmentSource)}
-        go produceFromNgramOrigin(ctx, queue, nil, false, fragmentSource)
+        go produceFromNgramOrigin(ctx, queue, 0, nil, false, fragmentSource)
     }
-    fragments = make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren())
+    fragments = make([]production, 0, maxInitialProductions * ctx.GetProductionSearchBranchesChildren())
     remaining = len(cases)
     for remaining > 0 {
         chosen, value, received := reflect.Select(cases)
@@ -451,7 +509,6 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
         fragments = append(fragments, value.Interface().(production))
     }
     
-    
     //next, do a forward-search to finish each production
     queue = make(chan production, len(fragments))
     for _, fragment := range fragments {
@@ -460,11 +517,14 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     close(queue)
     fragments = nil
     
-    finisherSources = make([](chan production), min(maxParallelOperations, len(queue)))
-    cases = make([]reflect.SelectCase, len(finisherSources))
-    for i, finisherSource := range finisherSources {
+    goroutineCount = min(maxParallelOperations, len(queue))
+    finisherSources = make([](chan production), goroutineCount)
+    cases = make([]reflect.SelectCase, goroutineCount)
+    for i := 0 ; i < goroutineCount; i++ {
+        finisherSource := make(chan production, 1)
+        finisherSources = append(finisherSources, finisherSource)
         cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
-        go produceFromNgramOrigin(ctx, queue, nil, true, finisherSource)
+        go produceFromNgramOrigin(ctx, queue, ctx.GetProductionMinLength(), nil, true, finisherSource)
     }
     remaining = len(cases)
     for remaining > 0 {
@@ -477,7 +537,6 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
         finishedProductions = append(finishedProductions, value.Interface().(production))
     }
     
-    
     return finishedProductions, nil
 }
 
@@ -486,7 +545,7 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
 func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, error) {
     //if an n-gram enumeration turns up a banned option, that's just bad luck; carry on and let the fallback strategies deal with it
     
-    searchBranchesBoundaryRemaining := ctx.GetSearchBranchesFromBoundaryInitial()
+    searchBranchesBoundaryRemaining := ctx.GetProductionSearchBranchesFromBoundaryInitial()
     productions := make([]production, 0, searchBranchesBoundaryRemaining)
     
     if ctx.AreQuintgramsEnabled() {
@@ -610,9 +669,9 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
         keytokenIdsSet[id] = false
     }
     
-    maxInitialProductions := ctx.GetSearchBranchesFromBoundaryInitial()
-    maxParallelOperations := ctx.GetMaxParallelOperations()
-    finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetSearchBranchesChildren() * 2)
+    maxInitialProductions := ctx.GetProductionSearchBranchesFromBoundaryInitial()
+    maxParallelOperations := ctx.GetProductionMaxParallelOperations()
+    finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetProductionSearchBranchesChildren() * 2)
     
     
     //do forward entries first for consistency
@@ -626,11 +685,14 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
     }
     close(queue)
     
-    finisherSources := make([](chan production), min(maxParallelOperations, len(queue)))
-    cases := make([]reflect.SelectCase, len(finisherSources))
-    for i, finisherSource := range finisherSources {
+    goroutineCount := min(maxParallelOperations, len(queue))
+    finisherSources := make([](chan production), goroutineCount)
+    cases := make([]reflect.SelectCase, goroutineCount)
+    for i := 0 ; i < goroutineCount; i++ {
+        finisherSource := make(chan production, 1)
+        finisherSources = append(finisherSources, finisherSource)
         cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
-        go produceFromNgramOrigin(ctx, queue, keytokenIdsSet, true, finisherSource)
+        go produceFromNgramOrigin(ctx, queue, ctx.GetProductionMinLength(), keytokenIdsSet, true, finisherSource)
     }
     remaining := len(cases)
     for remaining > 0 {
@@ -655,11 +717,14 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
     }
     close(queue)
     
-    finisherSources = make([](chan production), min(maxParallelOperations, len(queue)))
-    cases = make([]reflect.SelectCase, len(finisherSources))
-    for i, finisherSource := range finisherSources {
+    goroutineCount = min(maxParallelOperations, len(queue))
+    finisherSources = make([](chan production), goroutineCount)
+    cases = make([]reflect.SelectCase, goroutineCount)
+    for i := 0 ; i < goroutineCount; i++ {
+        finisherSource := make(chan production, 1)
+        finisherSources = append(finisherSources, finisherSource)
         cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(finisherSource)}
-        go produceFromNgramOrigin(ctx, queue, keytokenIdsSet, false, finisherSource)
+        go produceFromNgramOrigin(ctx, queue, ctx.GetProductionMinLength(), keytokenIdsSet, false, finisherSource)
     }
     remaining = len(cases)
     for remaining > 0 {
@@ -671,7 +736,6 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
         }
         finishedProductions = append(finishedProductions, value.Interface().(production))
     }
-    
     
     return finishedProductions, nil
 }

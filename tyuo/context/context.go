@@ -224,21 +224,38 @@ func (c *Context) UnbanSubstrings(substrings []string) (error) {
 func (c *Context) GetProductionTokensInitial() (int) {
     return c.config.Production.TokensInitial
 }
-func (c *Context) GetSearchBranchesInitial() (int) {
+func (c *Context) GetProductionSearchBranchesInitial() (int) {
     return c.config.Production.SearchBranchesInitial
 }
-func (c *Context) GetSearchBranchesFromBoundaryInitial() (int) {
+func (c *Context) GetProductionSearchBranchesFromBoundaryInitial() (int) {
     return c.config.Production.SearchBranchesFromBoundaryInitial
 }
-func (c *Context) GetSearchBranchesChildren() (int) {
+func (c *Context) GetProductionSearchBranchesChildren() (int) {
     return c.config.Production.SearchBranchesChildren
 }
 
-func (c *Context) GetMaxParallelOperations() (int) {
+func (c *Context) GetProductionMaxParallelOperations() (int) {
     return c.config.Production.MaxParallelOperations
 }
 
-
+func (c *Context) GetProductionMinLength() (int) {
+    return c.config.Production.MinLength
+}
+func (c *Context) GetProductionMaxLength() (int) {
+    return c.config.Production.MaxLength
+}
+func (c *Context) GetProductionStopProbability() (float32) {
+    return c.config.Production.StopProbability
+}
+func (c *Context) GetProductionTargetMinLength() (int) {
+    return c.config.Production.TargetMinLength
+}
+func (c *Context) GetProductionTargetMaxLength() (int) {
+    return c.config.Production.TargetMaxLength
+}
+func (c *Context) GetProductionTargetStopProbability() (float32) {
+    return c.config.Production.TargetStopProbability
+}
 
 
 func (c *Context) getOldestAllowedTime() (int64) {

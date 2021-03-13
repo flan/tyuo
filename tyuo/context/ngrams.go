@@ -79,6 +79,18 @@ func transitionsChooseWeightedRandom(
     }
     return selectedIds
 }
+func transitionsChooseFromSet(
+    transitions map[int]transitionSpec,
+    desired map[int]bool,
+) ([]int) {
+    selectedIds := make([]int, 0)
+    for k, _ := range desired {
+        if _, present := transitions[k]; present {
+            selectedIds = append(selectedIds, k)
+        }
+    }
+    return selectedIds
+}
 //this is part of the surprise-calculation from MegaHAL, used to evaluate how
 //predictable a production ended up being as the basis of its scoring system
 func transitionsCalculateSurprise(
@@ -121,11 +133,20 @@ func (g *Digram) increment(dictionaryId int) {
 func (g *Digram) GetDictionaryIdFirst() (int) {
     return g.dictionaryIdFirst
 }
+func (g *Digram) IsTerminal() (bool) {
+    _, boundary := g.transitions[BoundaryId]
+    return boundary
+}
 func (g *Digram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
 ) ([]int) {
     return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Digram) ChooseTransitionIds(
+    desired map[int]bool,
+) ([]int) {
+    return transitionsChooseFromSet(g.transitions, desired)
 }
 func (g *Digram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
@@ -154,11 +175,20 @@ func (g *Trigram) GetDictionaryIdFirst() (int) {
 func (g *Trigram) GetDictionaryIdSecond() (int) {
     return g.dictionaryIdSecond
 }
+func (g *Trigram) IsTerminal() (bool) {
+    _, boundary := g.transitions[BoundaryId]
+    return boundary
+}
 func (g *Trigram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
 ) ([]int) {
     return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Trigram) ChooseTransitionIds(
+    desired map[int]bool,
+) ([]int) {
+    return transitionsChooseFromSet(g.transitions, desired)
 }
 func (g *Trigram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
@@ -192,11 +222,20 @@ func (g *Quadgram) GetDictionaryIdSecond() (int) {
 func (g *Quadgram) GetDictionaryIdThird() (int) {
     return g.dictionaryIdThird
 }
+func (g *Quadgram) IsTerminal() (bool) {
+    _, boundary := g.transitions[BoundaryId]
+    return boundary
+}
 func (g *Quadgram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
 ) ([]int) {
     return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Quadgram) ChooseTransitionIds(
+    desired map[int]bool,
+) ([]int) {
+    return transitionsChooseFromSet(g.transitions, desired)
 }
 func (g *Quadgram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
@@ -235,11 +274,20 @@ func (g *Quintgram) GetDictionaryIdThird() (int) {
 func (g *Quintgram) GetDictionaryIdFourth() (int) {
     return g.dictionaryIdFourth
 }
+func (g *Quintgram) IsTerminal() (bool) {
+    _, boundary := g.transitions[BoundaryId]
+    return boundary
+}
 func (g *Quintgram) SelectTransitionIds(
     count int,
     banCheck func([]int)(map[int]bool),
 ) ([]int) {
     return transitionsChooseWeightedRandom(g.transitions, count, banCheck)
+}
+func (g *Quintgram) ChooseTransitionIds(
+    desired map[int]bool,
+) ([]int) {
+    return transitionsChooseFromSet(g.transitions, desired)
 }
 func (g *Quintgram) CalculateSurprise(dictionaryId int) (float64) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)

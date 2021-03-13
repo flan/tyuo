@@ -978,7 +978,7 @@ func (db *database) quadgramsGetFromBoundary(
     FROM
         quadgrams_%s
     WHERE
-        dictionaryIdFirst = ?1
+        dictionaryIdFirst = ?1 AND
         dictionaryIdSecond = ?2
     ORDER BY RANDOM()
     LIMIT %d
