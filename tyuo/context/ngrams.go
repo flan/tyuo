@@ -18,7 +18,7 @@ func transitionsIncrement(transitions map[int]transitionSpec, dictionaryId int) 
     }
 }
 //called before writing the value to the database
-func transitionsRescale(transitions map[int]transitionSpec, rescaleThreshold int,  rescaleDecimator int) {
+func transitionsRescale(transitions map[int]transitionSpec, rescaleThreshold int, rescaleDecimator int) {
     rescaleNeeded := false
     for _, ts := range transitions {
         if ts.occurrences > rescaleThreshold {
@@ -126,17 +126,28 @@ func transitionsCalculateSurprise(
 }
 
 
+type Ngram interface {
+    rescale(int, int) 
+    increment(int)
+    
+    IsTerminal() (bool)
+    SelectTransitionIds(int, func([]int)(map[int]bool), bool) ([]int)
+    ChooseTransitionIds(map[int]bool, int) ([]int)
+    CalculateSurprise(int) (float64)
+}
 
 
 type DigramSpec struct {
     DictionaryIdFirst int
 }
 type Digram struct {
+    Ngram
+    
     transitions map[int]transitionSpec
     
     dictionaryIdFirst int
 }
-func (g *Digram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+func (g *Digram) rescale(rescaleThreshold int, rescaleDecimator int) {
     transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
 }
 func (g *Digram) increment(dictionaryId int) {
@@ -172,12 +183,14 @@ type TrigramSpec struct {
     DictionaryIdSecond int
 }
 type Trigram struct {
+    Ngram
+    
     transitions map[int]transitionSpec
     
     dictionaryIdFirst int
     dictionaryIdSecond int
 }
-func (g *Trigram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+func (g *Trigram) rescale(rescaleThreshold int, rescaleDecimator int) {
     transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
 }
 func (g *Trigram) increment(dictionaryId int) {
@@ -217,13 +230,15 @@ type QuadgramSpec struct {
     DictionaryIdThird int
 }
 type Quadgram struct {
+    Ngram
+    
     transitions map[int]transitionSpec
     
     dictionaryIdFirst int
     dictionaryIdSecond int
     dictionaryIdThird int
 }
-func (g *Quadgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+func (g *Quadgram) rescale(rescaleThreshold int, rescaleDecimator int) {
     transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
 }
 func (g *Quadgram) increment(dictionaryId int) {
@@ -267,6 +282,8 @@ type QuintgramSpec struct {
     DictionaryIdFourth int
 }
 type Quintgram struct {
+    Ngram
+    
     transitions map[int]transitionSpec
     
     dictionaryIdFirst int
@@ -274,7 +291,7 @@ type Quintgram struct {
     dictionaryIdThird int
     dictionaryIdFourth int
 }
-func (g *Quintgram) rescale(rescaleThreshold int,  rescaleDecimator int) {
+func (g *Quintgram) rescale(rescaleThreshold int, rescaleDecimator int) {
     transitionsRescale(g.transitions, rescaleThreshold, rescaleDecimator)
 }
 func (g *Quintgram) increment(dictionaryId int) {
