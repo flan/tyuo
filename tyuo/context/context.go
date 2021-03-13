@@ -12,7 +12,6 @@ import (
 )
 
 const LanguageEnglish = "english"
-const LanguageFrench = "french"
 
 
 type contextConfigNgrams struct {

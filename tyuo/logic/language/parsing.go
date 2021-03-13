@@ -103,8 +103,6 @@ func Parse(input string, learn bool, ctx *context.Context) ([]context.ParsedToke
     switch ctx.GetLanguage() {
         case context.LanguageEnglish:
             lang = &englishLanguageDefinition
-        case context.LanguageFrench:
-            lang = &frenchLanguageDefinition
         default:
             logger.Errorf("unrecognised language: %s", ctx.GetLanguage())
             return make([]context.ParsedToken, 0), false
