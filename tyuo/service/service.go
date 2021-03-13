@@ -86,9 +86,17 @@ func speakHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextMan
     
     var startTime time.Time = time.Now()
     
-    logic.Speak(ctx, request.Input)
+    assembledProductions := logic.Speak(ctx, request.Input)
+    var response, err = json.Marshal(assembledProductions)
+    if err != nil { //this should never happen
+        logger.Errorf("non-JSON-compliant payload: %s", err)
+    } else {
+        if _, err := w.Write(response); err != nil {
+            logger.Errorf("unable to write output to %s: %s", r.RemoteAddr, err)
+        }
+    }
     
-    logger.Infof("prepared response in %s", time.Now().Sub(startTime))
+    logger.Infof("prepared response with %d options in %s", len(assembledProductions), time.Now().Sub(startTime))
 }
 
 type learnRequest struct {

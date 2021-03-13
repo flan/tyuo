@@ -477,7 +477,7 @@ var englishLanguageDefinition = languageDefinition{
     delimiter: ' ',
     characters: englishCharacters,
     
-    digestToken: func (token []rune, normaliser *transform.Transformer) ([]context.ParsedToken, bool) {
+    digestToken: func(token []rune, normaliser *transform.Transformer) ([]context.ParsedToken, bool) {
         tokens := make([]context.ParsedToken, 0, 2)
         punctuationBefore, punctuationAfter, token, learnable := punctuationDissect(token)
         if !learnable {
@@ -566,12 +566,62 @@ var englishLanguageDefinition = languageDefinition{
         
         return tokens, true
     },
+    
+    formatUtterance: func(production []int, dictionaryTokens map[int]context.DictionaryToken, baseRepresentationThreshold float32) (string) {
+        var output strings.Builder
+        
+        startOfSentence := true
+        spaceRequired := false
+        for i, id := range production {
+            spaceRequired = true
+            
+            //see if it's punctuation
+            if punctuation, defined := context.PunctuationTokensById[id]; defined {
+                switch punctuation {
+                    case "…":
+                        output.WriteString(punctuation)
+                        if i != 0 {
+                            spaceRequired = false
+                        }
+                    case ".", "?", "!", "⁈", "‼", "⁇":
+                        output.WriteString(punctuation)
+                        startOfSentence = true
+                    case "—", "&":
+                        output.WriteByte(' ')
+                        output.WriteString(punctuation)
+                    default:
+                        output.WriteString(punctuation)
+                }
+                continue
+            }
+            
+            //since whatever's left is either a word or a symbol, add a space if it makes sense to do so
+            if spaceRequired {
+                output.WriteByte(' ')
+            }
+            
+            //see if it's a symbol
+            if symbol, defined := context.SymbolsTokensById[id]; defined {
+                output.WriteString(symbol)
+                continue
+            }
+            
+            //it must be a word
+            if dictionaryToken, defined := dictionaryTokens[id]; defined {
+                representation, isBase := dictionaryToken.Represent(baseRepresentationThreshold)
+                if isBase && startOfSentence {
+                    output.WriteString(strings.Title(representation))
+                } else {
+                    output.WriteString(representation)
+                }
+                startOfSentence = false
+            } else {
+                logger.Errorf("unable to resolve dictionary token for %d; the database is inconsistent", id)
+                output.Reset()
+                break
+            }
+        }
+        
+        return output.String()
+    },
 }
-
-
-
-//there's also a formatting step where the first token in a sentence gets capitalised,
-//if the chosen representation was case-insensitive.
-
-//when formatting, if the very first token is an ellipsis, don't put a space after it
-

@@ -256,6 +256,10 @@ func (c *Context) GetProductionTargetStopProbability() (float32) {
     return c.config.Production.TargetStopProbability
 }
 
+func (c *Context) GetProductionBaseRepresentationThreshold() (float32) {
+    return c.config.Production.BaseRepresentationThreshold
+}
+
 
 func (c *Context) getOldestAllowedTime() (int64) {
     return time.Now().Unix() - c.config.Learning.MaxAge
@@ -364,8 +368,6 @@ func (c *Context) GetQuintgramsFromBoundary(
         c.getOldestAllowedTime(),
     )
 }
-
-
 
 
 func (c *Context) IsAllowed(s string) (bool) {
@@ -505,6 +507,9 @@ func (c *Context) EnumerateKeytokenIds(tokens []ParsedToken) ([]int, error) {
     return filteredIds, nil
 }
 
+func (c *Context) GetDictionaryTokensById(ids map[int]bool) (map[int]DictionaryToken, error) {
+    return c.dictionary.getSliceById(ids)
+}
 
 
 

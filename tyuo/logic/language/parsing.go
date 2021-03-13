@@ -99,17 +99,18 @@ func lex(
 }
 
 func Parse(input string, learn bool, ctx *context.Context) ([]context.ParsedToken, bool) {
-    var lang *languageDefinition
-    switch ctx.GetLanguage() {
-        case context.LanguageEnglish:
-            lang = &englishLanguageDefinition
-        default:
-            logger.Errorf("unrecognised language: %s", ctx.GetLanguage())
-            return make([]context.ParsedToken, 0), false
+    lang := getLanguageDefinition(ctx.GetLanguage())
+    if lang == nil {
+        return make([]context.ParsedToken, 0), false
     }
     parsedTokens, learnable := lex(input, learn, ctx.GetMaxTokenLength(), lang)
     
-    if learnable {
+    if learnable && len(parsedTokens) > 0 {
+        //make sure the first character isn't non-sentence-initial punctuation
+        if _, defined := context.PunctuationTokensNonSentenceInitial[parsedTokens[0].Base]; defined {
+            return parsedTokens, false
+        }
+        
         //one final pass over tokens to make sure there's no consecutive punctuation (which is all single-token strings now)
         previousTokenIsPunctuation := false
         for _, token := range parsedTokens {

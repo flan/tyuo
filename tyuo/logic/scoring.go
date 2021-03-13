@@ -6,10 +6,19 @@ import (
 //receives a collection of productions;
 //produces a collection of productions with scoring data
 func score(ctx *context.Context, productions []production) ([]scoredProduction, error) {
+    scoredProductions := make([]scoredProduction, len(productions))
+    
+    for _, p := range productions {
+        scoredProductions = append(scoredProductions, scoredProduction{
+            production: p,
+            score: 0,
+            surprise: 0.0,
+        })
+    }
     
     //use goroutines liberally
     
-    return nil, nil
+    return scoredProductions, nil
 }
 
 

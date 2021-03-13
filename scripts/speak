@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import requests
 import sys
 
@@ -10,4 +11,4 @@ r = requests.post('http://localhost:48100/speak',
     timeout=10.0,
 )
 print(r.status_code)
-print(r.text)
+print(json.dumps(r.json(), indent=4))
