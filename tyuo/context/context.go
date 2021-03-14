@@ -393,7 +393,7 @@ func (c *Context) AreIdsAllowed(ids []int) (bool) {
 }
 
 func (c *Context) LearnInput(tokens []ParsedToken) (error) {
-    if len(tokens) == 0 {
+    if len(tokens) < c.config.Learning.MinTokenCount {
         return nil
     }
 
