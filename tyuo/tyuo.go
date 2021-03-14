@@ -1,7 +1,7 @@
 /* tyuo is a Markov-chain-based chatbot, loosely based on MegaHAL by Jason
  * Hutchens.
  * 
- * More specifically, tyuo is a rewrite of yuo, which was cobbled together by
+ * More specifically, tyuo is a rework of yuo, which was cobbled together by
  * Neil Tallim in 2002, based on a limited understanding of how MegaHAL worked
  * and very rudimentary knowledge of C.
  * While things have probably diverged a lot, MegaHAL was undeniably the initial
