@@ -176,6 +176,44 @@ func produceFromNgramOrigin(ctx *context.Context, starters <-chan production, mi
     close(results)
 }
 
+type produceDuplicateDetectionTrie struct {
+    children map[int]*produceDuplicateDetectionTrie
+    terminal bool
+}
+func (pddt *produceDuplicateDetectionTrie) isDuplicate(p production) (bool) {
+    if len(p) == 0 {
+        if pddt.terminal {
+            return true
+        }
+        pddt.terminal = true
+        return false
+    }
+    
+    child, defined := pddt.children[p[0]]
+    if !defined {
+        child = &produceDuplicateDetectionTrie{
+            children: make(map[int]*produceDuplicateDetectionTrie),
+            terminal: false,
+        }
+        pddt.children[p[0]] = child
+    }
+    return child.isDuplicate(p[1:])
+}
+//a simple Trie approach to avoid doing redundant post-processing work
+func produceEliminateDuplicates(productions []production) ([]production) {
+    filteredProductions := make([]production, 0, len(productions))
+    pddt := produceDuplicateDetectionTrie{
+        children: make(map[int]*produceDuplicateDetectionTrie),
+        terminal: false,
+    }
+    for _, p := range productions {
+        if !pddt.isDuplicate(p) {
+            filteredProductions = append(filteredProductions, p)
+        } else {
+        }
+    }
+    return filteredProductions
+}
 
 func produceStarters(ctx *context.Context, id int, forward bool) ([]production, error) {
     //if an n-gram enumeration turns up a banned option, that's just bad luck; carry on and let the fallback strategies deal with it
@@ -501,7 +539,7 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
         finishedProductions = append(finishedProductions, value.Interface().(production))
     }
     
-    return finishedProductions, nil
+    return produceEliminateDuplicates(finishedProductions), nil
 }
 
 
@@ -701,5 +739,5 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
         finishedProductions = append(finishedProductions, value.Interface().(production))
     }
     
-    return finishedProductions, nil
+    return produceEliminateDuplicates(finishedProductions), nil
 }
