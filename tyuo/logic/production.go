@@ -659,7 +659,7 @@ func produceTerminalStarters(ctx *context.Context, forward bool) ([]production, 
             }
         }
     }
-    
+
     return productions, nil
 }
 

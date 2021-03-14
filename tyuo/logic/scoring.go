@@ -111,7 +111,7 @@ func scoreSurpriseQuintgrams(ctx *context.Context, scoredProductions []scoredPro
         go scoreSurpriseQuintgramsGoroutine(sp, ngrams, forward, results, &wg)
     }
     
-    surpriseScoredProductions := make([]scoredProduction, len(scoredProductions))
+    surpriseScoredProductions := make([]scoredProduction, 0, len(scoredProductions))
     wg.Wait()
     close(results)
     for sp := range results {
@@ -172,7 +172,7 @@ func scoreSurpriseQuadgrams(ctx *context.Context, scoredProductions []scoredProd
         go scoreSurpriseQuadgramsGoroutine(sp, ngrams, forward, results, &wg)
     }
     
-    surpriseScoredProductions := make([]scoredProduction, len(scoredProductions))
+    surpriseScoredProductions := make([]scoredProduction, 0, len(scoredProductions))
     wg.Wait()
     close(results)
     for sp := range results {
@@ -231,7 +231,7 @@ func scoreSurpriseTrigrams(ctx *context.Context, scoredProductions []scoredProdu
         go scoreSurpriseTrigramsGoroutine(sp, ngrams, forward, results, &wg)
     }
     
-    surpriseScoredProductions := make([]scoredProduction, len(scoredProductions))
+    surpriseScoredProductions := make([]scoredProduction, 0, len(scoredProductions))
     wg.Wait()
     close(results)
     for sp := range results {
@@ -288,7 +288,7 @@ func scoreSurpriseDigrams(ctx *context.Context, scoredProductions []scoredProduc
         go scoreSurpriseDigramsGoroutine(sp, ngrams, forward, results, &wg)
     }
     
-    surpriseScoredProductions := make([]scoredProduction, len(scoredProductions))
+    surpriseScoredProductions := make([]scoredProduction, 0, len(scoredProductions))
     wg.Wait()
     close(results)
     for sp := range results {
@@ -434,7 +434,7 @@ func score(ctx *context.Context, productions []production, keytokenIds map[int]b
         go scoreProduction(p, keytokenIdsCopy, results, ctx, &wg)
     }
     
-    scoredProductions := make([]scoredProduction, len(productions))
+    scoredProductions := make([]scoredProduction, 0, len(productions))
     wg.Wait()
     close(results)
     for sp := range results {
