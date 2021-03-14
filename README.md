@@ -278,7 +278,7 @@ though it does share language-level banned and boring lists.
 
 As much as reasonably possible, tyuo will not hold any information in the database in memory, to reduce its process
 footprint when idle, which is likely to be close to 100% of the time, given that its operations tend to be on the order
-of 30ms on a Ryzen 3700X.
+of 30ms on a Ryzen 3700X with an SSD.
 
 One exception to this is banned tokens. It's just much more efficient to hold that relatively small set of strings and IDs in
 memory to quickly filter out unwanted input without unnecessarily hitting the database.
