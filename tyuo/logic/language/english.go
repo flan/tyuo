@@ -108,6 +108,8 @@ var englishCorrections = map[string]string{
     "shes": "she's",
     "souldnt": "shouldn't",
     "souldve": "should've",
+    "hte": "the",
+    "teh": "the",
     "their's": "theirs",
     "theres": "there's",
     "theyre": "they're",
