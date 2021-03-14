@@ -429,6 +429,10 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     for token, id := range PunctuationIdsByToken {
         tokensMap[token] = id
     }
+    //put symbols mappings in
+    for token, id := range SymbolsIdsByToken {
+        tokensMap[token] = id
+    }
 
     baseTokens := make([]string, len(tokens))
     for i, token := range tokens {
