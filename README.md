@@ -29,9 +29,9 @@ Within the specified directory, a few files need to exist:
 .
 ├── contexts
 │   └── <context-id>.json
-├── languages
-│   ├── <language>.banned
-│   └── <language>.boring
+└── languages
+    ├── <language>.banned
+    └── <language>.boring
 ```
 
 Samples for all of these can be found in the `data/` directory within this project.
