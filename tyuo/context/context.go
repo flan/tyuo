@@ -260,6 +260,13 @@ func (c *Context) GetProductionBaseRepresentationThreshold() (float32) {
     return c.config.Production.BaseRepresentationThreshold
 }
 
+func (c *Context) GetProductionCalculateSurpriseForward() (bool) {
+    return c.config.Production.CalculateSurpriseForward
+}
+func (c *Context) GetProductionCalculateSurpriseReverse() (bool) {
+    return c.config.Production.CalculateSurpriseReverse
+}
+
 
 func (c *Context) getOldestAllowedTime() (int64) {
     return time.Now().Unix() - c.config.Learning.MaxAge

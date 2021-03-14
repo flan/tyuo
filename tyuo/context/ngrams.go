@@ -108,10 +108,11 @@ func transitionsChooseFromSet(
 func transitionsCalculateSurprise(
     transitions map[int]transitionSpec,
     dictionaryId int,
-) (float64) {
+) (float32) {
     ts, defined := transitions[dictionaryId]
     if !defined {
-        logger.Errorf("an impossible transition to %d was requested", dictionaryId)
+        //an impossible transition was requested, likely because the production
+        //n-gram was of a different order
         return 0.0
     }
     
@@ -122,7 +123,7 @@ func transitionsCalculateSurprise(
         return 0.0
     }
     
-    return -math.Log2(float64(ts.occurrences) / float64(transitionsSum))
+    return float32(-math.Log2(float64(ts.occurrences) / float64(transitionsSum)))
 }
 
 
@@ -133,7 +134,7 @@ type Ngram interface {
     IsTerminal() (bool)
     SelectTransitionIds(int, func([]int)(map[int]bool), bool) ([]int)
     ChooseTransitionIds(map[int]bool, int) ([]int)
-    CalculateSurprise(int) (float64)
+    CalculateSurprise(int) (float32)
 }
 
 
@@ -173,7 +174,7 @@ func (g *Digram) ChooseTransitionIds(
 ) ([]int) {
     return transitionsChooseFromSet(g.transitions, desired, count)
 }
-func (g *Digram) CalculateSurprise(dictionaryId int) (float64) {
+func (g *Digram) CalculateSurprise(dictionaryId int) (float32) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
 }
 
@@ -219,7 +220,7 @@ func (g *Trigram) ChooseTransitionIds(
 ) ([]int) {
     return transitionsChooseFromSet(g.transitions, desired, count)
 }
-func (g *Trigram) CalculateSurprise(dictionaryId int) (float64) {
+func (g *Trigram) CalculateSurprise(dictionaryId int) (float32) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
 }
 
@@ -270,7 +271,7 @@ func (g *Quadgram) ChooseTransitionIds(
 ) ([]int) {
     return transitionsChooseFromSet(g.transitions, desired, count)
 }
-func (g *Quadgram) CalculateSurprise(dictionaryId int) (float64) {
+func (g *Quadgram) CalculateSurprise(dictionaryId int) (float32) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
 }
 
@@ -326,7 +327,7 @@ func (g *Quintgram) ChooseTransitionIds(
 ) ([]int) {
     return transitionsChooseFromSet(g.transitions, desired, count)
 }
-func (g *Quintgram) CalculateSurprise(dictionaryId int) (float64) {
+func (g *Quintgram) CalculateSurprise(dictionaryId int) (float32) {
     return transitionsCalculateSurprise(g.transitions, dictionaryId)
 }
 
