@@ -26,7 +26,7 @@ Run with `-help` to see what options exist. The most significant one is `-data-d
 Within the specified directory, a few files need to exist:
 
 ```
-.
+$DATA_DIR
 ├── contexts
 │   └── <context-id>.json
 └── languages
