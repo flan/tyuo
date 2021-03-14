@@ -4,8 +4,8 @@ tyuo is a Markov-chain-based chatterbot, inspired by
 [Jason Hutchens' MegaHAL](https://en.wikipedia.org/wiki/MegaHAL).
 
 More specifically, tyuo is a rework of a hack against the original C-based MegaHAL,
-based on a limited understanding of how it worked and very rudimentary knowledge of
-the language.
+called yuo, based on a limited understanding of how it worked and very rudimentary
+knowledge of the language.
 
 This implementation is almost entirely clean-room, save for the "surprise" calculation,
 which was preserved for use either as a tie-breaker against tyo's own scoring model or
