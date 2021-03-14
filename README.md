@@ -55,7 +55,7 @@ of its extensions are local to its parsing and formatting functions.
 `<context-id>.json` is given the ID for a context as its name and contains details about how that
 context should operate, all the knobs and dials that can be tweaked to affect how it learns and speaks.
 
-```json
+```javascript
 {
     /* the language to use in this context */
     "Language": "english",
