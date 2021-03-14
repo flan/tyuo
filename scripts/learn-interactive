@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+import requests
+import sys
+
+while True:
+    r = requests.post('http://localhost:48100/learn',
+        json={
+            "ContextId": sys.argv[1],
+            "Input": [input().strip()],
+        },
+        timeout=10.0,
+    )
+    print(r.status_code)
+    

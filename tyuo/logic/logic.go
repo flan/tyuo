@@ -49,13 +49,11 @@ func Speak(ctx *context.Context, input string) ([]assembledProduction) {
             logger.Errorf("unable to build productions: %s", err)
             return nil
         }
-logger.Criticalf("raw %v", productions)
         scoredProductions, err = score(ctx, productions, keytokenIdsForScoring)
         if err != nil {
             logger.Errorf("unable to score productions: %s", err)
             return nil
         }
-logger.Criticalf("scored %v", scoredProductions)
     }
     if len(scoredProductions) == 0 { //either no keytokens or no sufficiently good productions
         countReverse := tokensInitial / 2
@@ -68,13 +66,11 @@ logger.Criticalf("scored %v", scoredProductions)
             logger.Errorf("unable to build productions: %s", err)
             return nil
         }
-logger.Criticalf("raw walk %v", productions)
         scoredProductions, err = score(ctx, productions, keytokenIdsForScoring)
         if err != nil {
             logger.Errorf("unable to score productions: %s", err)
             return nil
         }
-logger.Criticalf("scored walk %v", scoredProductions)
     }
     
     if len(scoredProductions) > 0 {

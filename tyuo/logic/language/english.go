@@ -600,7 +600,7 @@ var englishLanguageDefinition = languageDefinition{
             }
             
             //since whatever's left is either a word or a symbol, add a space if it makes sense to do so
-            if spaceRequired {
+            if spaceRequired && i > 0 {
                 output.WriteByte(' ')
             }
             
