@@ -24,12 +24,12 @@ func min(x, y int) (int) {
 type production []int
 type scoredProduction struct {
     production production
-    score int
+    score float32
     surprise float32
 }
 type assembledProduction struct {
     Utterance string
-    Score int
+    Score float32
     Surprise float32
 }
 

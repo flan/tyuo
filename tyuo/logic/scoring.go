@@ -16,39 +16,39 @@ func scoreProduction(
 ) {
     defer wg.Done()
     
-    score := 0
+    var score float32 = 0.0
     
     if len(p) >= ctx.GetProductionMinLength() {
         if len(p) >= ctx.GetProductionTargetMinLength() {
-            score += 1
+            score += 1.0
         }
     } else {
-        score -= 2
+        score -= 2.0
     }
     
     encounteredTokens := make(map[int]bool, len(p))
     for _, id := range p {
         if _, isKeytoken := keytokenIds[id]; isKeytoken {
-            score += 2 //award points for keytoken matches
+            score += 2.0 //award points for keytoken matches
             delete(keytokenIds, id)
         }
         
         if _, alreadyEncountered := encounteredTokens[id]; alreadyEncountered {
-            score -= 1 //deduct points for repetition
+            score -= 1.0 //deduct points for repetition
         } else {
             encounteredTokens[id] = false
         }
         
         if _, isPunctuation := context.PunctuationTokensById[id]; isPunctuation {
-            score += 1 //award points for punctuation, which should offset duplication penalties and favour more interesting phrases
+            score += 0.5 //award points for punctuation, which should offset duplication penalties and favour more interesting phrases
         }
         
         if _, isSymbol := context.SymbolsTokensById[id]; isSymbol {
-            score -= 1 //remove a point for symbols, making them rarer and dependent on an otherwise-higher-scored production to survive
+            score -= 1.0 //remove a point for symbols, making them rarer and dependent on an otherwise-higher-scored production to survive
         }
     }
     
-    if score > 0 {
+    if score > 0.0 { //if the score isn't positive, don't consider this an option
         output <- scoredProduction{
             production: p,
             score: score,
