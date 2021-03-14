@@ -410,7 +410,7 @@ func produceStarters(ctx *context.Context, id int, forward bool) ([]production, 
 
 func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error) {
     maxInitialProductions := (ctx.GetProductionSearchBranchesInitial() + ctx.GetProductionSearchBranchesFromBoundaryInitial()) * len(ids)
-    maxParallelOperations := ctx.GetProductionMaxParallelOperations()
+    maxParallelSearches := ctx.GetProductionMaxParallelSearches()
     finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetProductionSearchBranchesChildren() * 2)
     
     
@@ -427,7 +427,7 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     }
     close(queue)
     
-    goroutineCount := min(maxParallelOperations, len(queue))
+    goroutineCount := min(maxParallelSearches, len(queue))
     fragmentSources := make([](chan production), 0, goroutineCount)
     cases := make([]reflect.SelectCase, goroutineCount)
     for i := 0 ; i < goroutineCount; i++ {
@@ -456,7 +456,7 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     close(queue)
     fragments = nil
     
-    goroutineCount = min(maxParallelOperations, len(queue))
+    goroutineCount = min(maxParallelSearches, len(queue))
     finisherSources := make([](chan production), goroutineCount)
     cases = make([]reflect.SelectCase, goroutineCount)
     for i := 0 ; i < goroutineCount; i++ {
@@ -490,7 +490,7 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     }
     close(queue)
     
-    goroutineCount = min(maxParallelOperations, len(queue))
+    goroutineCount = min(maxParallelSearches, len(queue))
     fragmentSources = make([](chan production), 0, goroutineCount)
     cases = make([]reflect.SelectCase, goroutineCount)
     for i := 0 ; i < goroutineCount; i++ {
@@ -519,7 +519,7 @@ func produceFromKeytokens(ctx *context.Context, ids []int) ([]production, error)
     close(queue)
     fragments = nil
     
-    goroutineCount = min(maxParallelOperations, len(queue))
+    goroutineCount = min(maxParallelSearches, len(queue))
     finisherSources = make([](chan production), goroutineCount)
     cases = make([]reflect.SelectCase, goroutineCount)
     for i := 0 ; i < goroutineCount; i++ {
@@ -672,7 +672,7 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
     }
     
     maxInitialProductions := ctx.GetProductionSearchBranchesFromBoundaryInitial()
-    maxParallelOperations := ctx.GetProductionMaxParallelOperations()
+    maxParallelSearches := ctx.GetProductionMaxParallelSearches()
     finishedProductions := make([]production, 0, maxInitialProductions * ctx.GetProductionSearchBranchesChildren() * 2)
     
     
@@ -687,7 +687,7 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
     }
     close(queue)
     
-    goroutineCount := min(maxParallelOperations, len(queue))
+    goroutineCount := min(maxParallelSearches, len(queue))
     finisherSources := make([](chan production), goroutineCount)
     cases := make([]reflect.SelectCase, goroutineCount)
     for i := 0 ; i < goroutineCount; i++ {
@@ -719,7 +719,7 @@ func produceFromTerminals(ctx *context.Context, keytokenIds []int, countForward 
     }
     close(queue)
     
-    goroutineCount = min(maxParallelOperations, len(queue))
+    goroutineCount = min(maxParallelSearches, len(queue))
     finisherSources = make([](chan production), goroutineCount)
     cases = make([]reflect.SelectCase, goroutineCount)
     for i := 0 ; i < goroutineCount; i++ {

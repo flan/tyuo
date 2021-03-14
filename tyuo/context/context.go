@@ -15,97 +15,39 @@ const LanguageEnglish = "english"
 
 
 type contextConfigNgrams struct {
-    /* digrams are the simplest and fastest transition model; using them will
-     * produce behaviour that is often novel, sometimes insightful,
-     * frequently deranged, particularly as learning progresses.
-     * It's pretty random and will only resemble native speech by chance.
-     */
     Digrams bool
-    /* trigrams are a fairly middle-ground option, producing relevant
-     * observations with some regularity and having about as much
-     * sentence-structure correctness as a machine-translation between
-     * languages with no common ancestry.
-     */
     Trigrams bool
-    /*
-     * quadgrams are a reasonably stable choice for production of "how do you
-     * do, fellow humans" responses, being sell-formed for the most part, but
-     * closely reflecting observed input: a lot of data will need to be
-     * learned before novel structures will be produced with any regularity
-     * and search-spaces will sometimes be exhausted while finding viable
-     * paths.
-     */
     Quadgrams bool
-    /* quintgrams (and anything above them) will rarely deviate from mimicing
-     * what was learned; occasional novel productions are possible, but it
-     * will not be uncommon to see near-verbatim recreations of input data.
-     */
     Quintgrams bool
 }
 type contextConfigLearning struct {
-    //how long, in tokens, input needs to be before learning will occur;
-    //it is automatically fed to any enabled n-gram structures that
-    //can accomodate the given length
-    MinTokenCount int //10
+    MinTokenCount int
+    
+    MaxTokenLength int
 
-    //the number of runes allowed within any single token,
-    //used to prevent over-hyphenated compounds that will only
-    //ever be seen a handful of times from cluttering the database
-    MaxTokenLength int //12-15 is probably a good range for this
-
-    //how long to hold on to n-gram structures, in seconds
     MaxAge int64
 
-    //the number of dictionary occurrences or transitions at which
-    //to trigger rescale logic, which eliminates obsolete entries and
-    //keeps the numbers in check
-    RescaleThreshold int //should probably be 1000
-    //the divisor for rescaling; this affects how frequently it happens
-    //and how long rare entries hang around
-    RescaleDecimator int //should probably be 3
+    RescaleThreshold int
+    RescaleDecimator int
 }
 type contextConfigProduction struct {
-    //the maximum number of operations to run in parallel at any stage in the
-    //production pipeline
-    MaxParallelOperations int
+    MaxParallelSearches int
     
-    //the number of keytokens or terminals to choose before starting a search
-    TokensInitial int //try 2
-    //how many paths to explore from the initial token, in both directions
-    SearchBranchesInitial int //try 3
-    //how many paths to explore from the bounary, in both directions
-    SearchBranchesFromBoundaryInitial int //try 1
-    //how many paths each child should enumerate (but not necessarily explore)
-    SearchBranchesChildren int //try 2
+    TokensInitial int
+    SearchBranchesInitial int
+    SearchBranchesFromBoundaryInitial int
+    SearchBranchesChildren int
 
-    //the minimum number of tokens that need to be produced
     MinLength int
-    //the upper limit on how long a production can be
     MaxLength int
-    //the likelihood of stopping production, upon finding a terminal,
-    //before reaching the target range
     StopProbability float32
 
-    //the minimum desired length of a production
     TargetMinLength int
-    //the maximum desired length of a production
     TargetMaxLength int
-    //the likelihood of stopping production, upon finding a terminal,
-    //after reaching the target range
     TargetStopProbability float32
-    //NOTE: for scoring, define "slightly exceeding" as min <= i <= max; "greatly exceeding" as > max
 
-    //if a token is represented in its base form at least this often,
-    //choose that; otherwise, choose the most popular variant
-    BaseRepresentationThreshold float32 //0.9 is a good starting point
+    BaseRepresentationThreshold float32
     
-    //enabling this calculates surprise for each production, similar to how
-    //MegaHAL works to try to choose the most original response from its generations;
-    //this is in addition to tyuo's own scoring model, and it's up to the caller
-    //to decide which response to display (probably highest scored, tie-broken by
-    //highest surprise in most cases)
-    //turning either direction on incurs a linear n-gram lookup at the highest-enabled
-    //level, so it may be worth disabling one or both if milliseconds matter
     CalculateSurpriseForward bool
     CalculateSurpriseReverse bool
 }
@@ -233,8 +175,8 @@ func (c *Context) GetProductionSearchBranchesChildren() (int) {
     return c.config.Production.SearchBranchesChildren
 }
 
-func (c *Context) GetProductionMaxParallelOperations() (int) {
-    return c.config.Production.MaxParallelOperations
+func (c *Context) GetProductionMaxParallelSearches() (int) {
+    return c.config.Production.MaxParallelSearches
 }
 
 func (c *Context) GetProductionMinLength() (int) {
