@@ -433,7 +433,15 @@ func (c *Context) LearnInput(tokens []ParsedToken) (error) {
     for token, id := range SymbolsIdsByToken {
         tokensMap[token] = id
     }
-
+    
+    //correctness check, to avoid a class of error where a stripped token-subset isn't restored
+    //if this occurs, the database could end up corrupted, which is very not-good
+    for _, dt := range dictionaryTokens {
+        if _, defined := tokensMap[dt.baseRepresentation]; !defined {
+            return errors.New(fmt.Sprintf("unable to find a dictionary binding for %s", dt.baseRepresentation))
+        }
+    }
+    
     baseTokens := make([]string, len(tokens))
     for i, token := range tokens {
         baseTokens[i] = token.Base

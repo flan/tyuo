@@ -7,7 +7,7 @@
         "Quintgrams": false
     },
     "Learning": {
-        "MinTokenCount": 10,
+        "MinTokenCount": 6,
         "MaxTokenLength": 13,
 
         "MaxAge": 31536000,
