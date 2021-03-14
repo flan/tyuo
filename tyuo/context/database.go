@@ -1,10 +1,12 @@
 package context
 import (
+    "bytes"
+    "compress/zlib"
     "database/sql"
     "encoding/json"
     "flag"
     "fmt"
-    "github.com/4kills/go-zlib"
+    "io/ioutil"
     "path/filepath"
     "strings"
     "sync"
@@ -530,14 +532,15 @@ func (db *database) bannedUnbanSubstrings(substrings []string) (error) {
 
 
 func deserialiseTransitionsJSONZLIB(data []byte, oldestAllowedTime int64) (map[int]transitionSpec) {
-    reader, err := zlib.NewReader(nil)
+    var buf bytes.Buffer
+    buf.Write(data)
+    reader, err := zlib.NewReader(&buf)
     if err != nil {
-        panic(err) //inconsistency in zlib library between reader and writer;
-                   //make them do the same thing
-                   //(if this fails, the environment is unusable)
+        logger.Warningf("unable to decompress zlib data; reinitialising state: %s", err)
+        return make(map[int]transitionSpec, 1)
     }
     defer reader.Close()
-    _, decompressed, err := reader.ReadBuffer(data, nil)
+    decompressed, err := ioutil.ReadAll(reader)
     if err != nil {
         logger.Warningf("unable to decompress zlib data; reinitialising state: %s", err)
         return make(map[int]transitionSpec, 1)
@@ -568,14 +571,14 @@ func serialiseTransitionsJSONZLIB(specs map[int]transitionSpec) ([]byte) {
     }
     
     if buffer, err := json.Marshal(destructuredData); err == nil {
-        writer := zlib.NewWriter(nil)
-        defer writer.Close()
-        //HACK: when dealing with very small numbers of transitions, the zlib header will make the data bigger;
-        //overallocate the buffer to avoid problems with the C interface, which naively assumes it will always shrink
-        if compressed, err := writer.WriteBuffer(buffer, make([]byte, len(buffer) * 2)); err == nil {
-            return compressed
-        } else {
+        var buf bytes.Buffer
+        writer := zlib.NewWriter(&buf)
+        _, writeErr := writer.Write(buffer)
+        closeErr := writer.Close()
+        if writeErr != nil || closeErr != nil {
             logger.Warningf("unable to compress transitions; reinitialising state: %s", err)
+        } else {
+            return buf.Bytes()
         }
     } else {
         logger.Warningf("unable to serialise transitions; reinitialising state: %s", err)
