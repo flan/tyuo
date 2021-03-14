@@ -1,10 +1,10 @@
 {
     "Language": "english",
     "Ngrams": {
-        "Digrams": true,
+        "Digrams": false,
         "Trigrams": true,
         "Quadgrams": true,
-        "Quintgrams": true
+        "Quintgrams": false
     },
     "Learning": {
         "MinTokenCount": 10,
