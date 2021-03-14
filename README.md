@@ -232,17 +232,17 @@ You may need to grab these with `go get` to build this project. There shouldn't 
 
 First-party dependencies; you shouldn't have any concerns about introducing these:
 
-- golang.org/x/text/cases
-- golang.org/x/text/language
-- golang.org/x/text/runes
-- golang.org/x/text/transform
-- golang.org/x/text/unicode/norm
+- `golang.org/x/text/cases`
+- `golang.org/x/text/language`
+- `golang.org/x/text/runes`
+- `golang.org/x/text/transform`
+- `golang.org/x/text/unicode/norm`
 
 Third-party dependencies; these are pretty mature and well-vetted:
 
-- github.com/juju/loggo
+- `github.com/juju/loggo`
   - logging
-- github.com/mattn/go-sqlite3
+- `github.com/mattn/go-sqlite3`
   - SQLite3 driver
 
 
