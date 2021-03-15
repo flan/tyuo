@@ -75,8 +75,7 @@ context should operate, all the knobs and dials that can be tweaked to affect ho
          * languages with no common ancestry
          */
         "Trigrams": true,
-        /*
-         * quadgrams are a reasonably stable choice for production of "how do you
+        /* quadgrams are a reasonably stable choice for production of "how do you
          * do, fellow humans" responses, being well-formed for the most part, but
          * closely reflecting observed input: a lot of data will need to be
          * learned before novel structures will be produced with any regularity
