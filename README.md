@@ -262,10 +262,10 @@ of a sequence, and another "boundary" token is inserted at the end, signifying t
 possible for that n-gram path to end an utterance.
 
 When generating productions, an arbitrary keytoken is chosen from the input-set and then both forward and backward
-walks occur to reach a terminal state, the end of some other previously observed input. After that, the production
-fragment is fed into the same process in the opposite direction, this time beginning with its tail, hopefully ensuring
-that the full path from front to back is of consistent quality. (This is in contract to MegaHAL, which does two
-independent walks from the keytoken, then joins them together)
+walks occur to reach a terminal state, the end of some other previously observed input. After that, each monodirectional
+production fragment is fed into the same process in the opposite direction, this time beginning with its tail, hopefully
+ensuring that the full path from front to back is of consistent quality. (This is in contrast to MegaHAL, which does two
+independent walks from the keytoken, then directly joins them together)
 
 If no productions can be assembled in this manner, then forward and backward walks are conducted from arbitrary
 terminal-initial states, attempting to choose granches that include a keytoken along the way. This is so tyuo almost
