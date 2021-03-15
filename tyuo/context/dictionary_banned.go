@@ -125,9 +125,7 @@ func (bd *bannedDictionary) ban(substrings stringset) (error) {
         for _, bt := range newlyBannedTokens {
             bd.bannedTokens = append(bd.bannedTokens, bt)
             if bt.dictionaryId != undefinedDictionaryId {
-                if bt.dictionaryId != undefinedDictionaryId {
-                    bd.bannedIds[bt.dictionaryId] = voidInstance
-                }
+                bd.bannedIds[bt.dictionaryId] = voidInstance
             }
         }
         logger.Debugf("banned %d tokens: %v...", len(newlyBannedTokens), newlyBannedTokens)
