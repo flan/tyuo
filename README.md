@@ -252,6 +252,14 @@ At its core, tyuo is an implementation of an [n-gram](https://en.wikipedia.org/w
 [Markov chain](https://en.wikipedia.org/wiki/Markov_chain) model.
 It supports digrams, trigrams, quadgrams, and quintgrams.
 
+When given input to learn, the string, if within an acceptable domain, is lexed into a
+series of digestible tokens, which are then grouped into forward- and reverse-ordered
+n-grams, with the token following the n-gram becoming its transition-candidate for future
+productions. A special case exists for the first n-gram in a sequence and for the last:
+a "boundary" token is inserted before the first, allowing searches relative to the start
+of a sequence, and another "boundary" token is inserted at the end, signifying that it's
+possible for that n-gram path to end an utterance.
+
 When generating productions, an arbitrary keytoken is chosen from the input-set and then both forward and backward
 walks occur to reach a terminal state, the end of some other previously observed input. After that, the production
 fragment is fed into the same process in the opposite direction, this time beginning with its tail, hopefully ensuring
