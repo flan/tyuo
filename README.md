@@ -1,10 +1,11 @@
 # tyuo
 
-tyuo is a Markov-chain-based chatterbot, inspired by Jason Hutchens' MegaHAL.
+tyuo is a Markov-chain-based chatterbot, inspired by
+[Jason Hutchens' MegaHAL](https://en.wikipedia.org/wiki/MegaHAL).
 
 More specifically, tyuo is a rework of a hack against the original C-based MegaHAL,
-based on a limited understanding of how it worked and very rudimentary knowledge of
-the language.
+called yuo, based on a limited understanding of how it worked and very rudimentary
+knowledge of the language.
 
 This implementation is almost entirely clean-room, save for the "surprise" calculation,
 which was preserved for use either as a tie-breaker against tyo's own scoring model or
@@ -26,12 +27,12 @@ Run with `-help` to see what options exist. The most significant one is `-data-d
 Within the specified directory, a few files need to exist:
 
 ```
-.
+$DATA_DIR
 ├── contexts
 │   └── <context-id>.json
-├── languages
-│   ├── <language>.banned
-│   └── <language>.boring
+└── languages
+    ├── <language>.banned
+    └── <language>.boring
 ```
 
 Samples for all of these can be found in the `data/` directory within this project.
@@ -285,7 +286,7 @@ though it does share language-level banned and boring lists.
 
 As much as reasonably possible, tyuo will not hold any information in the database in memory, to reduce its process
 footprint when idle, which is likely to be close to 100% of the time, given that its operations tend to be on the order
-of 30ms on a Ryzen 3700X.
+of 30ms on a Ryzen 3700X with an SSD.
 
 One exception to this is banned tokens. It's just much more efficient to hold that relatively small set of strings and IDs in
 memory to quickly filter out unwanted input without unnecessarily hitting the database.
