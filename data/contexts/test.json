@@ -33,7 +33,7 @@
 
         "BaseRepresentationThreshold": 0.9,
         
-        "CalculateSurpriseForward": true,
-        "CalculateSurpriseReverse": true
+        "CalculateSurpriseForward": false,
+        "CalculateSurpriseReverse": false
     }
 }

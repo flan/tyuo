@@ -34,17 +34,17 @@ func scoreProduction(
         }
         
         if _, alreadyEncountered := encounteredTokens[id]; alreadyEncountered {
-            score -= 1.0 //deduct points for repetition
+            score -= 1.5 //deduct points for repetition
         } else {
             encounteredTokens[id] = false
         }
         
         if _, isPunctuation := context.PunctuationTokensById[id]; isPunctuation {
-            score += 0.5 //award points for punctuation, which should offset duplication penalties and favour more interesting phrases
+            score += 0.25 //award points for punctuation, which should offset duplication penalties and favour more interesting phrases
         }
         
         if _, isSymbol := context.SymbolsTokensById[id]; isSymbol {
-            score -= 1.0 //remove a point for symbols, making them rarer and dependent on an otherwise-higher-scored production to survive
+            score -= 0.5 //remove a point for symbols, making them rarer and dependent on an otherwise-higher-scored production to survive
         }
     }
     
