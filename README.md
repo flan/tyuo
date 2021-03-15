@@ -8,7 +8,7 @@ called yuo, based on a limited understanding of how it worked and very rudimenta
 knowledge of the language.
 
 This implementation is almost entirely clean-room, save for the "surprise" calculation,
-which was preserved for use either as a tie-breaker against tyo's own scoring model or
+which was preserved for use either as a tie-breaker against tyuo's own scoring model or
 for more-faithful emulation of its inspiration.
 
 Notably, this design diverges by concurrently making use of a mix of n-grams, from di-
