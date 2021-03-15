@@ -64,7 +64,7 @@ context should operate, all the knobs and dials that can be tweaked to affect ho
     "Ngrams": {
         /* digrams are the simplest and fastest transition model; using them will
          * produce behaviour that is often novel, sometimes insightful,
-         * frequently deranged, particularly as learning progresses
+         * and frequently deranged, particularly as learning progresses
          * 
          * it's pretty random and will only resemble native speech by chance
          */
