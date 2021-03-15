@@ -93,8 +93,8 @@ context should operate, all the knobs and dials that can be tweaked to affect ho
     
     "Learning": {
         /* how long, in tokens, input needs to be before learning will occur;
-         * it is automatically fed to any enabled n-gram structures that
-         * can accomodate the given length
+         * if input is over this threshold, it is automatically fed to any
+         * enabled n-gram structures that can accomodate the given length
          */
         "MinTokenCount": 6,
         /* the number of runes allowed within any single token,
