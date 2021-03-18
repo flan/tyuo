@@ -96,7 +96,7 @@ func speakHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextMan
         }
     }
     
-    logger.Infof("prepared response with %d options in %s", len(assembledProductions), time.Now().Sub(startTime))
+    logger.Infof("prepared response with %d options in %s in %s", len(assembledProductions), request.ContextId, time.Now().Sub(startTime))
 }
 
 type learnRequest struct {
@@ -117,7 +117,7 @@ func learnHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextMan
     
     linesLearned := logic.Learn(ctx, request.Input)
     
-    logger.Infof("learned %d lines of input in %s", linesLearned, time.Now().Sub(startTime))
+    logger.Infof("learned %d lines of input in %s in %s", linesLearned, request.ContextId, time.Now().Sub(startTime))
 }
 
 type banRequest struct {
@@ -138,7 +138,7 @@ func banSubstringsHandler(w http.ResponseWriter, r *http.Request, cm *context.Co
     
     logic.BanSubstrings(ctx, request.Substrings)
     
-    logger.Infof("banned in %s", time.Now().Sub(startTime))
+    logger.Infof("banned from %s in %s", request.ContextId, time.Now().Sub(startTime))
 }
 func unbanSubstringsHandler(w http.ResponseWriter, r *http.Request, cm *context.ContextManager) {
     requestJson := doPreamble(&w, r)
@@ -154,7 +154,7 @@ func unbanSubstringsHandler(w http.ResponseWriter, r *http.Request, cm *context.
     
     logic.UnbanSubstrings(ctx, request.Substrings)
     
-    logger.Infof("unbanned in %s", time.Now().Sub(startTime))
+    logger.Infof("unbanned from %s in %s", request.ContextId, time.Now().Sub(startTime))
 }
 
 

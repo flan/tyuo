@@ -18,18 +18,18 @@
     "Production": {
         "MaxParallelSearches": 8,
         
-        "TokensInitial": 2,
+        "TokensInitial": 3,
         "SearchBranchesInitial": 4,
         "SearchBranchesFromBoundaryInitial": 2,
         "SearchBranchesChildren": 2,
 
         "MinLength": 5,
         "MaxLength": 30,
-        "StopProbability": 0.25,
+        "StopProbability": 0.2,
 
         "TargetMinLength": 8,
         "TargetMaxLength": 16,
-        "TargetStopProbability": 0.375,
+        "TargetStopProbability": 0.35,
 
         "BaseRepresentationThreshold": 0.9,
         
