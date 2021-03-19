@@ -5,6 +5,9 @@ import (
     "golang.org/x/text/transform"
 )
 
+var runeSubstitution map[rune]rune{
+    '’': '\'',
+}
 
 func digestToken(
     token []rune,
@@ -55,6 +58,10 @@ func lex(
             }
             currentTokenValid = true
             continue
+        }
+        
+        if substituteRune, substituted := runeSubstitution[r]; substituted {
+            r = substituteRune
         }
         
         if _, isCharacter := characters[r]; !isCharacter {
