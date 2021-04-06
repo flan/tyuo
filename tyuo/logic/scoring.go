@@ -23,13 +23,13 @@ func scoreProduction(
             score += 1.0
         }
     } else {
-        score -= 2.0
+        score -= 1.0
     }
     
     encounteredTokens := make(map[int]bool, len(p))
     for _, id := range p {
         if _, isKeytoken := keytokenIds[id]; isKeytoken {
-            score += 2.0 //award points for keytoken matches
+            score += 1.25 //award points for keytoken matches
             delete(keytokenIds, id)
         }
         

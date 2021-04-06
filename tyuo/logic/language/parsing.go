@@ -5,7 +5,7 @@ import (
     "golang.org/x/text/transform"
 )
 
-var runeSubstitution map[rune]rune{
+var runeSubstitution = map[rune]rune{
     '’': '\'',
 }
 

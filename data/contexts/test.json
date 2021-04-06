@@ -31,7 +31,7 @@
         "TargetMaxLength": 16,
         "TargetStopProbability": 0.35,
 
-        "BaseRepresentationThreshold": 0.9,
+        "BaseRepresentationThreshold": 0.5,
         
         "CalculateSurpriseForward": false,
         "CalculateSurpriseReverse": false
