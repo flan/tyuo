@@ -5,6 +5,7 @@ import (
     "golang.org/x/text/transform"
     
     "strings"
+    "unicode"
 )
 
 var englishCharacters = runeset{
@@ -616,7 +617,17 @@ var englishLanguageDefinition = languageDefinition{
             if dictionaryToken, defined := dictionaryTokens[id]; defined {
                 representation, isBase := dictionaryToken.Represent(baseRepresentationThreshold)
                 if isBase && startOfSentence {
-                    output.WriteString(strings.Title(representation))
+                    var head rune
+                    var tail []rune
+                    for j, r := range representation {
+                        if j == 0 {
+                            head = r
+                        } else {
+                            tail = append(tail, r)
+                        }
+                    }
+                    output.WriteRune(unicode.ToUpper(head))
+                    output.WriteString(string(tail))
                 } else {
                     output.WriteString(representation)
                 }
