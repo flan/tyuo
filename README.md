@@ -290,4 +290,4 @@ of 30ms on a Ryzen 3700X with an SSD.
 One exception to this is banned tokens. It's just much more efficient to hold that relatively small set of strings and IDs in
 memory to quickly filter out unwanted input without unnecessarily hitting the database.
 
-API accesses are internally subject to a read/write-lock, allowing for threadsafe use by any number of callers.
+API accesses are internally subject to a multi-reader lock, allowing for threadsafe use by any number of callers.
