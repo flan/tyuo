@@ -1,14 +1,14 @@
 # tyuo
 
-tyuo is a Markov-chain-based chatterbot, inspired by
+*tyuo* is a Markov-chain-based chatterbot, inspired by
 [Jason Hutchens' MegaHAL](https://en.wikipedia.org/wiki/MegaHAL).
 
-More specifically, tyuo is a rework of a hack against the original C-based MegaHAL,
-called yuo, based on a limited understanding of how it worked and very rudimentary
+More specifically, *tyuo* is a rework of a hack against the original C-based MegaHAL,
+called *yuo*, based on a limited understanding of how it worked and very rudimentary
 knowledge of the language.
 
 This implementation is almost entirely clean-room, save for the "surprise" calculation,
-which was preserved for use either as a tie-breaker against tyuo's own scoring model or
+which was preserved for use either as a tie-breaker against *tyuo*'s own scoring model or
 for more-faithful emulation of its inspiration.
 
 Notably, this design diverges by concurrently making use of a mix of n-grams, from di-
@@ -38,11 +38,11 @@ $DATA_DIR
 Samples for all of these can be found in the `data/` directory within this project.
 
 `boring` words are those that serve a purely functional role in framing an inquiry.
-When someone wants to ask tyuo a question, picking these as keywords will almost certainly
+When someone wants to ask *tyuo* a question, picking these as keywords will almost certainly
 lead to a response they won't want, so they're discounted as choices when parsing the input.
 
 `banned` substrings are parts of words that should never be uttered by the chatbot.
-This list protects both against tyuo learning phrases containing the words (avoiding undesired
+This list protects both against *tyuo* learning phrases containing the words (avoiding undesired
 n-gram paths and dictionary entries) and producing phrases containing the words if the list is
 modified after learning has occurred. There is also a per-context mechanism to extend bans on
 a local scale.
@@ -123,6 +123,7 @@ context should operate, all the knobs and dials that can be tweaked to affect ho
          */
         "RescaleDecimator": 3
     },
+    
     "Production": {
         /* the maximum number of searches to conduct simultaneously,
          * used to limit resource usage when doing long recursive explorations
@@ -217,7 +218,7 @@ context should operate, all the knobs and dials that can be tweaked to affect ho
 }
 ```
 
-With a config file in place, when tyuo is asked to interact with the corresponding context, it will load the config
+With a config file in place, when *tyuo* is asked to interact with the corresponding context, it will load the config
 and, if necessary, create a new `<context-id>.sqlite3` file in the same directory, which hosts its dictionaries and
 n-grams.
 
@@ -248,7 +249,7 @@ Third-party dependencies; these are pretty mature and well-vetted:
 
 ## theory of operation
 
-At its core, tyuo is an implementation of an [n-gram](https://en.wikipedia.org/wiki/N-gram)-based
+At its core, *tyuo* is an implementation of an [n-gram](https://en.wikipedia.org/wiki/N-gram)-based
 [Markov chain](https://en.wikipedia.org/wiki/Markov_chain) model.
 It supports digrams, trigrams, quadgrams, and quintgrams.
 
@@ -267,7 +268,7 @@ ensuring that the full path from front to back is of consistent quality. (This i
 independent walks from the keytoken, then directly joins them together)
 
 If no productions can be assembled in this manner, then forward and backward walks are conducted from arbitrary
-terminal-initial states, attempting to choose granches that include a keytoken along the way. This is so tyuo almost
+terminal-initial states, attempting to choose branches that include a keytoken along the way. This is so *tyuo* almost
 always has something to say, even if it ends up being completely irrelevant.
 
 To support this flow, the highest-order n-gram model is tried first in each step, successively falling back to the lowest
@@ -280,10 +281,10 @@ to the caller, with scoring results, so it can pick the most suitable option for
 
 ### implementation details
 
-tyuo uses an isolated SQLite3 database to serve each context. There is no common memory or overlap between them,
+*tyuo* uses an isolated SQLite3 database to serve each context. There is no common memory or overlap between them,
 though it does share language-level banned and boring lists.
 
-As much as reasonably possible, tyuo will not hold any information in the database in memory, to reduce its process
+As much as reasonably possible, *tyuo* will not hold any information in the database in memory, to reduce its process
 footprint when idle, which is likely to be close to 100% of the time, given that its operations tend to be on the order
 of 30ms on a Ryzen 3700X with an SSD.
 
